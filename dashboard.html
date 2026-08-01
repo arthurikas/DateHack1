@@ -849,7 +849,7 @@ const INVITE_BASE = (function() {
   const loc = window.location;
   let basePath = loc.pathname.replace(/\/[^\/]*$/, '');
   if (basePath.endsWith('/')) basePath = basePath.slice(0, -1);
-  return loc.origin + basePath + '/invite';
+  return loc.origin + basePath + '/invite.html';
 })();
 
 // Encode: URL-safe Base64url (no +, /, or =)
