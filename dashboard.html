@@ -714,10 +714,10 @@
       </div>
 
       <!-- STEP 5 -->
-      <div class="step" id="step-5" role="region" aria-label="Etapa 5: Vibe e Fotos">
+      <div class="step" id="step-5" role="region" aria-label="Etapa 5: Vibe">
         <span class="step-icon">✨</span>
         <h2 class="step-title">Qual a vibe do date?</h2>
-        <p class="step-subtitle">Escolha a vibe e adicione fotos opcionais 📸</p>
+        <p class="step-subtitle">Escolha o clima do encontro 💫</p>
         
         <div class="field-label" style="margin-bottom:9px">💫 Vibe do encontro</div>
         <div class="cards-grid-2" id="vibe-grid">
@@ -735,18 +735,6 @@
           </div>
           <div class="budget-card" data-vibe="surpresa" onclick="selectVibe(this)" role="button" tabindex="0">
             <span class="card-emoji">🎁</span><div class="card-label">Surpresa</div><div class="card-sub">Ela que descubra 😄</div>
-          </div>
-        </div>
-
-        <div class="field-label" style="margin:14px 0 9px">📸 Fotos (opcional)</div>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;">
-          <div class="photo-upload-box" id="my-photo-box" onclick="document.getElementById('my-photo-input').click()">
-            <div id="my-photo-preview"><span style="font-size:2rem">🤳</span><div style="font-size:0.75rem;margin-top:6px;color:var(--text-muted)">Minha foto</div></div>
-            <input type="file" id="my-photo-input" accept="image/*" style="display:none" onchange="handlePhotoUpload('my', this)">
-          </div>
-          <div class="photo-upload-box" id="her-photo-box" onclick="document.getElementById('her-photo-input').click()">
-            <div id="her-photo-preview"><span style="font-size:2rem">💁</span><div style="font-size:0.75rem;margin-top:6px;color:var(--text-muted)">Foto dela</div></div>
-            <input type="file" id="her-photo-input" accept="image/*" style="display:none" onchange="handlePhotoUpload('her', this)">
           </div>
         </div>
 
@@ -1295,8 +1283,6 @@ function buildData() {
     dates: wz.dates.filter(d => d.date),
     theme: wz.theme,
     vibe: wz.vibe,
-    myPhoto: wz.myPhoto || null,
-    herPhoto: wz.herPhoto || null,
   };
 }
 
@@ -1313,7 +1299,7 @@ function generateLink() {
 
   const qrEl = document.getElementById('qrcode');
   qrEl.innerHTML = '';
-  new QRCode(qrEl, { text: link, width: 120, height: 120, colorDark: '#a4133c', colorLight: '#fff0f3', correctLevel: QRCode.CorrectLevel.M });
+  new QRCode(qrEl, { text: link, width: 140, height: 140, colorDark: '#ff2d78', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
 
   const captions = { romantic: `${wz.name}, olha o que eu preparei pra você 👀❤️`, casual: `ei ${wz.name}, olha isso aqui 👀😄`, elegant: `Querida ${wz.name}, preparei algo especial para você 💌🥂` };
   document.getElementById('caption-text').textContent = captions[wz.theme] || captions.romantic;
