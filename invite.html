@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>💘 Date Hack — Você recebeu um convite!</title>
+<meta name="description" content="Alguém preparou um convite especial só pra você pelo Date Hack. Abra e descubra!">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Quicksand:wght@600;700&family=Lobster&family=Bangers&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+body {
+  font-family: 'Quicksand', sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 100vh;
+  min-height: 100dvh;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ===== THEMES (all dark-base with pink/purple accents) ===== */
+body.theme-romantic {
+  background: linear-gradient(160deg, #0d0d0f 0%, #1a0d14 50%, #150818 100%);
+  --accent: #ff2d78;
+  --accent2: #7a1f5c;
+  --card-bg: rgba(255,255,255,0.04);
+  --card-border: rgba(255,45,120,0.25);
+  --card-glow: rgba(255,45,120,0.18);
+  --btn-yes: linear-gradient(135deg, #ff2d78, #7a1f5c);
+  --btn-yes-shadow: #4a0e3d;
+  --btn-no: rgba(255,255,255,0.06);
+  --btn-no-border: rgba(255,45,120,0.25);
+  --text: #f5f5f5;
+  --subtext: rgba(255,180,215,0.8);
+  --title-color: #ff9dc8;
+  --option-bg: rgba(255,45,120,0.07);
+  --option-border: rgba(255,45,120,0.22);
+}
+
+body.theme-casual {
+  background: linear-gradient(160deg, #0d0d0f 0%, #120d1a 50%, #0e0816 100%);
+  --accent: #c060ff;
+  --accent2: #6b1fa0;
+  --card-bg: rgba(255,255,255,0.04);
+  --card-border: rgba(192,96,255,0.25);
+  --card-glow: rgba(192,96,255,0.18);
+  --btn-yes: linear-gradient(135deg, #c060ff, #6b1fa0);
+  --btn-yes-shadow: #3d0e66;
+  --btn-no: rgba(255,255,255,0.06);
+  --btn-no-border: rgba(192,96,255,0.25);
+  --text: #f5f5f5;
+  --subtext: rgba(220,180,255,0.8);
+  --title-color: #dbb0ff;
+  --option-bg: rgba(192,96,255,0.07);
+  --option-border: rgba(192,96,255,0.22);
+}
+
+body.theme-elegant {
+  background: linear-gradient(160deg, #0d0d0f 0%, #0e0d10 50%, #0a080e 100%);
+  --accent: #ffd700;
+  --accent2: #b8860b;
+  --card-bg: rgba(255,255,255,0.04);
+  --card-border: rgba(255,215,0,0.22);
+  --card-glow: rgba(255,215,0,0.14);
+  --btn-yes: linear-gradient(135deg, #ffd700, #b8860b);
+  --btn-yes-shadow: #7b5804;
+  --btn-no: rgba(255,255,255,0.05);
+  --btn-no-border: rgba(255,215,0,0.22);
+  --text: #f5f5f5;
+  --subtext: rgba(255,240,180,0.8);
+  --title-color: #ffe699;
+  --option-bg: rgba(255,215,0,0.06);
+  --option-border: rgba(255,215,0,0.2);
+}
+
+/* ===== PARTICLES & GLITTER ===== */
+.bg-particles {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.particle {
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+  animation: riseUp linear infinite;
+  will-change: transform;
+  filter: drop-shadow(0 0 5px var(--accent));
+}
+
+@keyframes riseUp {
+  0%   { transform: translateY(105vh) rotate(-20deg) scale(0.8); opacity: 0; }
+  10%  { opacity: 0.9; }
+  90%  { opacity: 0.9; }
+  100% { transform: translateY(-15vh) rotate(25deg) scale(1.1); opacity: 0; }
+}
+
+.glitter-dot {
+  position: absolute;
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: white;
+  pointer-events: none;
+  animation: glitterTwinkle ease-in-out infinite;
+}
+
+@keyframes glitterTwinkle {
+  0%, 100% { opacity: 0; transform: scale(0); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+/* ===== PREVIEW BANNER ===== */
+.preview-banner {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  background: rgba(0,0,0,0.92);
+  color: white;
+  text-align: center;
+  padding: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  z-index: 200;
+  display: none;
+  border-bottom: 1px solid var(--accent);
+}
+.preview-banner.visible { display: block; }
+
+/* ===== CONFETTI ===== */
+.confetti-container {
+  position: fixed; inset: 0;
+  pointer-events: none; z-index: 999; overflow: hidden;
+}
+.confetti-piece {
+  position: absolute; top: -30px;
+  animation: confettiFall linear forwards;
+}
+@keyframes confettiFall {
+  0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(105vh) rotate(720deg); opacity: 0; }
+}
+
+/* ===== HERO AREA (EMOJI GIGANTE + HERO HEARTS) ===== */
+.hero-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 10;
+  min-height: 140px;
+  width: 100%;
+  padding: 10px 0;
+}
+
+#hero-emoji {
+  font-size: clamp(80px, 24vw, 135px);
+  line-height: 1;
+  filter: drop-shadow(0 10px 24px rgba(0,0,0,0.65));
+  animation: heroPulse 3.2s ease-in-out infinite;
+  display: block;
+  text-align: center;
+  user-select: none;
+}
+
+@keyframes heroPulse {
+  0%, 100% { transform: translateY(0) scale(1) rotate(-3deg); }
+  50% { transform: translateY(-12px) scale(1.04) rotate(3deg); }
+}
+
+.hero-hearts {
+  position: absolute; inset: 0; pointer-events: none;
+}
+.hero-heart {
+  position: absolute;
+  font-size: 1.2rem;
+  filter: drop-shadow(0 0 6px #ff2d78);
+  animation: heartOrbit ease-in-out infinite;
+}
+@keyframes heartOrbit {
+  0%, 100% { transform: translate(0,0) scale(1); opacity: 0.7; }
+  50% { transform: translate(var(--dx), var(--dy)) scale(1.15); opacity: 1; }
+}
+
+/* ===== INVITE CARD (glassmorphism dark pink) ===== */
+.invite-card {
+  position: relative;
+  z-index: 20;
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border-radius: 28px 28px 0 0;
+  border: 1px solid var(--card-border);
+  border-bottom: none;
+  width: 100%;
+  max-width: 480px;
+  max-height: 72vh;
+  max-height: 72dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--text);
+  box-shadow:
+    0 -16px 50px rgba(255,45,120,0.12),
+    0 -3px 0 var(--card-border),
+    inset 0 1px 0 rgba(255,255,255,0.07);
+  margin-top: auto;
+}
+
+/* Card shimmer top border */
+.invite-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 12%; right: 12%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  border-radius: 2px;
+  z-index: 30;
+  animation: shimmerLine 3s ease-in-out infinite;
+}
+@keyframes shimmerLine {
+  0%, 100% { opacity: 0.3; transform: scaleX(0.5); }
+  50% { opacity: 1; transform: scaleX(1); }
+}
+
+/* ===== SCREENS ===== */
+.screen {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 22px 20px 28px;
+  overflow-y: auto; /* Internal scroll for screen if needed */
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  animation: screenFadeIn 0.4s cubic-bezier(0.16,1,0.3,1) forwards;
+}
+.screen::-webkit-scrollbar { display: none; }
+.screen { scrollbar-width: none; }
+
+.screen.active { display: flex; }
+
+@keyframes screenFadeIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.invite-emoji-big { display: none; }
+
+/* ===== PHOTOS ROW & VIBE BADGE ===== */
+.photos-row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+.photo-bubble {
+  width: 58px; height: 58px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid var(--accent);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5), 0 0 10px var(--card-glow);
+  position: relative;
+  flex-shrink: 0;
+}
+.photo-bubble img {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.photo-bubble .photo-label {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: rgba(0,0,0,0.65);
+  font-size: 0.48rem;
+  font-weight: 700;
+  text-align: center;
+  color: white;
+  padding: 1px 0;
+  text-transform: uppercase;
+}
+
+.vibe-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--title-color);
+  margin-bottom: 8px;
+  text-shadow: 0 0 8px var(--accent);
+  flex-shrink: 0;
+}
+
+/* ===== TITLE & SUBTITLE ===== */
+.title-hearts {
+  font-size: 0.85rem;
+  letter-spacing: 5px;
+  text-align: center;
+  margin-bottom: 6px;
+  animation: heartsPulse 1.8s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes heartsPulse {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.1); opacity: 1; }
+}
+
+.invite-title {
+  font-family: 'Dancing Script', cursive;
+  font-size: clamp(1.6rem, 6vw, 2.2rem);
+  color: var(--title-color);
+  text-align: center;
+  line-height: 1.15;
+  margin-bottom: 4px;
+  text-shadow: 0 0 16px var(--accent), 0 2px 4px rgba(0,0,0,0.5);
+  flex-shrink: 0;
+}
+
+.invite-subtitle {
+  font-size: 0.86rem;
+  color: var(--subtext);
+  text-align: center;
+  margin-bottom: 12px;
+  font-weight: 600;
+  font-style: italic;
+  line-height: 1.35;
+  flex-shrink: 0;
+}
+
+/* ===== NO REACTION ===== */
+.no-reaction {
+  font-family: 'Dancing Script', cursive;
+  font-size: 1.05rem;
+  color: var(--accent);
+  text-align: center;
+  min-height: 24px;
+  margin: 4px 0 8px;
+  padding: 5px 12px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  opacity: 0;
+  transform: scale(0.92);
+  transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  text-shadow: 0 0 10px var(--accent);
+  flex-shrink: 0;
+}
+.no-reaction.visible { opacity: 1; transform: scale(1); }
+
+/* ===== BUTTONS ===== */
+.yesno-row {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  margin-top: auto; /* Push buttons nicely to bottom */
+  padding-top: 10px;
+  flex-shrink: 0;
+}
+
+.btn-yes, .btn-no {
+  flex: 1;
+  font-family: 'Lobster', cursive;
+  font-size: 1.45rem;
+  letter-spacing: 1px;
+  padding: 14px 0;
+  border-radius: 50px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-yes {
+  background: var(--btn-yes);
+  color: white;
+  box-shadow: 0 5px 0 var(--btn-yes-shadow), 0 8px 18px rgba(0,0,0,0.35);
+  text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+.btn-yes::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -60%;
+  width: 40%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  transform: skewX(-20deg);
+  animation: btnShine 2.5s ease-in-out infinite;
+}
+@keyframes btnShine {
+  0%, 100% { left: -60%; }
+  50% { left: 130%; }
+}
+.btn-yes:active { box-shadow: 0 2px 0 var(--btn-yes-shadow); transform: translateY(3px); }
+
+.btn-no {
+  background: var(--btn-no);
+  color: var(--subtext);
+  border: 1.5px solid var(--btn-no-border);
+  box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+}
+.btn-no:active { box-shadow: 0 1px 0 rgba(0,0,0,0.3); transform: translateY(3px); }
+.btn-no.hidden { opacity: 0; pointer-events: none; transform: scale(0.4); transition: all 0.3s ease; }
+
+.btn-wide {
+  width: 100%;
+  font-family: 'Lobster', cursive;
+  font-size: 1.45rem;
+  letter-spacing: 1px;
+  padding: 14px 0;
+  border-radius: 50px;
+  border: none;
+  cursor: pointer;
+  background: var(--btn-yes);
+  color: white;
+  box-shadow: 0 5px 0 var(--btn-yes-shadow), 0 8px 18px rgba(0,0,0,0.35);
+  text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  margin-top: 10px;
+  flex-shrink: 0;
+  transition: all 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-wide:active { box-shadow: 0 2px 0 var(--btn-yes-shadow); transform: translateY(3px); }
+
+/* ===== OPTIONS LIST (PERFECT INTERNAL SCROLL) ===== */
+.options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-height: 48vh;
+  max-height: 48dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 2px 10px 2px;
+  margin: 4px 0 10px;
+  flex: 1;
+}
+
+/* Custom subtle scrollbar */
+.options-list::-webkit-scrollbar {
+  width: 4px;
+}
+.options-list::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.05);
+  border-radius: 4px;
+}
+.options-list::-webkit-scrollbar-thumb {
+  background: var(--card-border);
+  border-radius: 4px;
+}
+
+.option-card {
+  background: var(--option-bg);
+  border: 1.5px solid var(--option-border);
+  border-radius: 16px;
+  padding: 13px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+  flex-shrink: 0;
+}
+.option-card::after {
+  content: '💕';
+  position: absolute;
+  right: 14px;
+  opacity: 0;
+  font-size: 1.1rem;
+  transition: opacity 0.2s, transform 0.2s;
+  transform: scale(0.5);
+}
+.option-card:hover::after, .option-card:active::after { opacity: 1; transform: scale(1); }
+.option-card:hover { background: rgba(255,255,255,0.14); transform: translateY(-1px); border-color: var(--accent); box-shadow: 0 4px 16px var(--card-glow); }
+.option-card:active { transform: scale(0.98); }
+
+.option-emoji {
+  font-size: 2rem; flex-shrink: 0; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+}
+.option-label {
+  font-size: 0.96rem; font-weight: 700; color: white; flex: 1;
+}
+.option-meta {
+  font-size: 0.78rem; color: var(--subtext); margin-top: 2px; font-weight: 600;
+}
+
+/* ===== CONFIRM CARD ===== */
+.confirm-card {
+  width: 100%;
+  background: rgba(255,255,255,0.06);
+  border: 1.5px solid var(--card-border);
+  border-radius: 18px;
+  padding: 14px;
+  margin: 8px 0 10px;
+  box-shadow: inset 0 0 16px var(--card-glow);
+  flex-shrink: 0;
+}
+.confirm-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px dashed rgba(255,255,255,0.12);
+}
+.confirm-item:last-child { border-bottom: none; }
+.confirm-label { font-size: 0.72rem; font-weight: 700; color: var(--subtext); text-transform: uppercase; letter-spacing: 0.5px; }
+.confirm-value { font-family: 'Dancing Script', cursive; font-size: 1.2rem; color: var(--title-color); text-shadow: 0 0 10px var(--accent); text-align: right; }
+
+/* ===== COUNTDOWN ===== */
+.countdown-box {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+.count-unit {
+  background: rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 8px 10px;
+  min-width: 52px;
+  text-align: center;
+  border: 1px solid var(--card-border);
+}
+.count-number {
+  font-family: 'Lobster', cursive;
+  font-size: 1.5rem;
+  color: var(--title-color);
+  text-shadow: 0 0 10px var(--accent);
+  display: block; line-height: 1;
+}
+.count-label { font-size: 0.56rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--subtext); display: block; margin-top: 2px; }
+.count-sep { font-family: 'Lobster', cursive; font-size: 1.5rem; color: var(--accent); margin-bottom: 12px; }
+
+.hearts-row {
+  font-size: 1.4rem; text-align: center; margin: 2px 0 6px;
+  letter-spacing: 5px;
+  animation: heartsPulse 1.6s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.final-msg {
+  font-family: 'Dancing Script', cursive;
+  font-size: 1.05rem;
+  color: var(--subtext);
+  text-align: center;
+  line-height: 1.4;
+  padding: 0 4px;
+  flex-shrink: 0;
+}
+
+/* ===== ERROR SCREEN ===== */
+.error-screen {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+}
+
+/* ===== RESPONSIVE FIXES ===== */
+@media (max-height: 680px) {
+  .hero-area { min-height: 110px; padding: 6px 0; }
+  #hero-emoji { font-size: 75px; }
+  .invite-card { max-height: 76vh; max-height: 76dvh; }
+  .screen { padding: 16px 16px 20px; }
+  .invite-title { font-size: 1.45rem; }
+  .btn-yes, .btn-no, .btn-wide { font-size: 1.3rem; padding: 12px 0; }
+  .options-list { max-height: 44vh; }
+}
+</style>
+</head>
+
+<body class="theme-romantic" id="invite-body">
+
+<!-- Preview Banner -->
+<div class="preview-banner" id="preview-banner">
+  👁️ MODO PREVIEW — Ela não verá esse aviso.
+</div>
+
+<!-- Confetti -->
+<div class="confetti-container" id="confetti-container"></div>
+
+<!-- BG particles -->
+<div class="bg-particles" id="bg-particles"></div>
+
+<!-- HERO EMOJI -->
+<div class="hero-area" id="hero-area">
+  <div class="hero-hearts" id="hero-hearts"></div>
+  <span id="hero-emoji">🥺</span>
+</div>
+
+<!-- INVITE CARD -->
+<div class="invite-card" id="invite-card" role="main">
+
+  <!-- SCREEN 1 -->
+  <div class="screen active" id="screen-1" role="region" aria-label="Convite">
+    <span class="invite-emoji-big" id="s1-emoji">💌</span>
+    <!-- Photos row (if present) -->
+    <div class="photos-row" id="photos-row" style="display:none"></div>
+    <!-- Vibe badge removed: ela vai escolher a vibe depois -->
+    
+    <div class="title-hearts" id="s1-hearts">💖 💗 💖 💗 💖</div>
+    <h1 class="invite-title" id="s1-title">Você toparia ir a um date comigo?</h1>
+    <p class="invite-subtitle" id="s1-phrase" style="display:none"></p>
+    <div class="no-reaction" id="no-reaction" role="alert" aria-live="polite"></div>
+    
+    <div class="yesno-row">
+      <button class="btn-yes" id="btn-yes" onclick="handleYes()" aria-label="Sim">Sim! 💕</button>
+      <button class="btn-no" id="btn-no" onclick="handleNo()" aria-label="Não">Não 😅</button>
+    </div>
+  </div>
+
+  <!-- SCREEN 2 -->
+  <div class="screen" id="screen-2" role="region" aria-label="Escolha a data">
+    <span class="invite-emoji-big">📅</span>
+    <div class="title-hearts">💖 💗 💖 💗 💖</div>
+    <h1 class="invite-title">Quando você prefere, meu amor?</h1>
+    <p class="invite-subtitle">Escolha a data mais linda pra a gente 🥰</p>
+    <div class="options-list" id="dates-options"></div>
+  </div>
+
+  <!-- SCREEN 3: Vibe (ela escolhe) -->
+  <div class="screen" id="screen-3" role="region" aria-label="Escolha a vibe">
+    <span class="invite-emoji-big">✨</span>
+    <div class="title-hearts">💖 💗 💖 💗 💖</div>
+    <h1 class="invite-title">Qual a vibe do nosso date?</h1>
+    <p class="invite-subtitle">Você que decide o clima! 😍</p>
+    <div class="options-list" id="vibe-options"></div>
+  </div>
+
+  <!-- SCREEN 4: Comida/Lugar -->
+  <div class="screen" id="screen-4" role="region" aria-label="Escolha a comida/lugar">
+    <span class="invite-emoji-big">🍽️</span>
+    <div class="title-hearts">💖 💗 💖 💗 💖</div>
+    <h1 class="invite-title">O que você quer fazer, princesa?</h1>
+    <p class="invite-subtitle">Você que manda! Escolha à vontade 😋💕</p>
+    <div class="options-list" id="food-options"></div>
+  </div>
+
+  <!-- SCREEN 5: Confirmação -->
+  <div class="screen" id="screen-5" role="region" aria-label="Confirmação">
+    <span class="invite-emoji-big">🎉</span>
+    <div class="title-hearts">💖 💗 💖 💗 💖</div>
+    <h1 class="invite-title" id="confirm-title">Tá marcado meu amor! 💕</h1>
+    <div class="confirm-card" id="confirm-card"></div>
+    <div class="countdown-box" id="countdown-box">
+      <div class="count-unit"><span class="count-number" id="cd-days-num">--</span><span class="count-label">dias</span></div>
+      <div class="count-sep">:</div>
+      <div class="count-unit"><span class="count-number" id="cd-hours-num">--</span><span class="count-label">horas</span></div>
+      <div class="count-sep">:</div>
+      <div class="count-unit"><span class="count-number" id="cd-mins-num">--</span><span class="count-label">min</span></div>
+      <div class="count-sep">:</div>
+      <div class="count-unit"><span class="count-number" id="cd-secs-num">--</span><span class="count-label">seg</span></div>
+    </div>
+    <div class="hearts-row" id="hearts-row">❤️ 💖 💗 💓 ❤️</div>
+    <p class="final-msg" id="final-msg"></p>
+  </div>
+
+  <!-- ERROR -->
+  <div class="error-screen" id="error-screen" style="display:none">
+    <span style="font-size:3.5rem">😿</span>
+    <h2 style="font-family:'Dancing Script',cursive;font-size:1.8rem;color:var(--title-color);margin:12px 0 8px;text-shadow:0 0 14px var(--accent)">Link inválido</h2>
+    <p style="color:var(--subtext);font-size:0.88rem;font-weight:600;line-height:1.5">Parece que esse link está incompleto ou foi corrompido.<br>Peça pra ele gerar um novo! 💌</p>
+  </div>
+
+</div>
+
+<script>
+const themes = {
+  romantic: {
+    particles: ['❤️','💖','💗','💓','💕','💝','❤️','💘','💞','✨','⭐','💖'],
+    heroEmoji: '🥺',
+    heroAfterYes: '😊',
+    heroDate: '🥰',
+    heroFood: '😍',
+    heroConfirm: '🥳',
+    finalMsg: (name) => `${name}, mal posso esperar por esse dia! Vai ser o date mais lindo do mundo, prometo. Te adoro demais ❤️`,
+    confirmTitle: 'Tá marcado meu amor! 💕',
+  },
+  casual: {
+    particles: ['💜','✨','💫','⭐','💜','🌟','💜','💗','✨','💜','⭐','💫'],
+    heroEmoji: '🥺',
+    heroAfterYes: '😁',
+    heroDate: '😆',
+    heroFood: '🤤',
+    heroConfirm: '🥳',
+    finalMsg: (name) => `${name}, preparado! Vai ser muito bom, pode confiar! 🎉💜`,
+    confirmTitle: 'Combinado então! 💜',
+  },
+  elegant: {
+    particles: ['✨','⭐','💫','🌟','✨','💛','⭐','💫','🌟','✨','💎','⭐'],
+    heroEmoji: '🥺',
+    heroAfterYes: '😌',
+    heroDate: '🥰',
+    heroFood: '😋',
+    heroConfirm: '🥂',
+    finalMsg: (name) => `${name}, foi uma honra. Aguardo você com toda antecipação do mundo. Até lá. 🥂✨`,
+    confirmTitle: 'Confirmado com carinho! ✨',
+  }
+};
+
+let inviteData = null;
+let noCount = 0;
+let selectedDate = null;
+let selectedFood = null;
+let selectedVibe = null;
+let countdownInterval = null;
+
+const noReactions = [
+  'Ai que crueldade comigo... 😢',
+  'Eu prometo que vai ser lindo! 🥺💕',
+  'Última chance... escolhe bem 😍',
+];
+
+function parseInviteData(raw) {
+  if (!raw) return null;
+  const str = raw.trim();
+  try {
+    if (str.startsWith('{')) return JSON.parse(str);
+    const d = decodeURIComponent(str);
+    if (d.startsWith('{')) return JSON.parse(d);
+  } catch(e) {}
+  try {
+    let b64 = str.replace(/ /g,'+').replace(/-/g,'+').replace(/_/g,'/');
+    while (b64.length % 4) b64 += '=';
+    return JSON.parse(decodeURIComponent(escape(atob(b64))));
+  } catch(e) {}
+  try {
+    let b64 = str.replace(/ /g,'+').replace(/-/g,'+').replace(/_/g,'/');
+    while (b64.length % 4) b64 += '=';
+    return JSON.parse(atob(b64));
+  } catch(e) {}
+  return null;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  const raw = params.get('data');
+  const isPreview = params.get('preview') === '1';
+
+  if (isPreview) document.getElementById('preview-banner').classList.add('visible');
+
+  inviteData = parseInviteData(raw);
+
+  if (!inviteData) { showError(); return; }
+
+  if (!isPreview && window.history && window.history.replaceState) {
+    try { window.history.replaceState({}, document.title, window.location.pathname); } catch(e) {}
+  }
+
+  applyTheme(inviteData.theme || 'romantic');
+  createParticles(inviteData.theme || 'romantic');
+  createGlitter();
+  createHeroHearts();
+  buildScreen1();
+  buildScreen2();
+  buildScreen3();
+  buildScreen4();
+});
+
+function applyTheme(t) {
+  document.getElementById('invite-body').className = `theme-${t}`;
+  document.title = `${inviteData.name ? inviteData.name + ', você' : 'Você'} recebeu um convite especial! 💌`;
+  const th = themes[t] || themes.romantic;
+  document.getElementById('hero-emoji').textContent = th.heroEmoji;
+}
+
+function createParticles(t) {
+  const container = document.getElementById('bg-particles');
+  const symbols = (themes[t] || themes.romantic).particles;
+  for (let i = 0; i < 28; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.textContent = symbols[Math.floor(Math.random() * symbols.length)];
+    p.style.left = (Math.random() * 100) + '%';
+    p.style.fontSize = (0.9 + Math.random() * 2) + 'rem';
+    p.style.animationDuration = (10 + Math.random() * 16) + 's';
+    p.style.animationDelay = (Math.random() * 20) + 's';
+    p.style.filter = `drop-shadow(0 2px 6px rgba(0,0,0,0.6))`;
+    container.appendChild(p);
+  }
+}
+
+function createGlitter() {
+  const container = document.getElementById('bg-particles');
+  for (let i = 0; i < 30; i++) {
+    const g = document.createElement('div');
+    g.className = 'glitter-dot';
+    g.style.left = (Math.random() * 100) + '%';
+    g.style.top = (Math.random() * 60) + '%';
+    g.style.width = (2 + Math.random() * 4) + 'px';
+    g.style.height = g.style.width;
+    g.style.background = ['white','#FFB3D9','#FFD700','#E040FB','#FF69B4'][Math.floor(Math.random()*5)];
+    g.style.animationDuration = (1.5 + Math.random() * 3) + 's';
+    g.style.animationDelay = (Math.random() * 4) + 's';
+    container.appendChild(g);
+  }
+}
+
+function createHeroHearts() {
+  const container = document.getElementById('hero-hearts');
+  const positions = [
+    {top:'10%',left:'5%',dx:'6px',dy:'-8px',delay:'0s'},
+    {top:'20%',right:'8%',dx:'-6px',dy:'-6px',delay:'0.5s'},
+    {top:'60%',left:'3%',dx:'5px',dy:'6px',delay:'1s'},
+    {top:'70%',right:'5%',dx:'-5px',dy:'5px',delay:'1.5s'},
+    {top:'40%',left:'0%',dx:'8px',dy:'0',delay:'0.8s'},
+  ];
+  positions.forEach(pos => {
+    const h = document.createElement('div');
+    h.className = 'hero-heart';
+    h.textContent = ['💗','💖','❤️','💕'][Math.floor(Math.random()*4)];
+    Object.assign(h.style, pos);
+    h.style.setProperty('--dx', pos.dx);
+    h.style.setProperty('--dy', pos.dy);
+    h.style.animationDuration = (2 + Math.random()) + 's';
+    h.style.animationDelay = pos.delay;
+    container.appendChild(h);
+  });
+}
+
+function setHeroEmoji(emoji) {
+  const el = document.getElementById('hero-emoji');
+  el.style.transition = 'transform 0.18s ease, opacity 0.18s ease';
+  el.style.transform = 'scale(0.7)';
+  el.style.opacity = '0';
+  setTimeout(() => {
+    el.textContent = emoji;
+    el.style.transform = 'scale(1.12)';
+    el.style.opacity = '1';
+    setTimeout(() => { el.style.transform = ''; }, 280);
+  }, 180);
+}
+
+function buildScreen1() {
+  const name = inviteData.name || '';
+  const title = name
+    ? `${name}, você toparia ir a um date comigo?`
+    : 'Você toparia ir a um date comigo?';
+  document.getElementById('s1-title').textContent = title;
+
+  if (inviteData.phrase) {
+    const phraseEl = document.getElementById('s1-phrase');
+    phraseEl.textContent = `"${inviteData.phrase}"`;
+    phraseEl.style.display = 'block';
+  }
+
+  // Photos row
+  const photosRow = document.getElementById('photos-row');
+  const myPhoto = inviteData.myPhoto;
+  const herPhoto = inviteData.herPhoto;
+  if (myPhoto || herPhoto) {
+    photosRow.style.display = 'flex';
+    photosRow.innerHTML = '';
+    if (myPhoto) {
+      photosRow.innerHTML += `<div class="photo-bubble"><img src="${myPhoto}" alt="Ele"><div class="photo-label">ele</div></div>`;
+    }
+    if (herPhoto) {
+      photosRow.innerHTML += `<div class="photo-bubble"><img src="${herPhoto}" alt="Ela"><div class="photo-label">ela</div></div>`;
+    }
+  }
+  // Vibe badge removido — ela vai escolher na tela 3
+}
+
+function handleNo() {
+  if (noCount >= noReactions.length) return;
+  const el = document.getElementById('no-reaction');
+  el.classList.remove('visible');
+  void el.offsetWidth;
+  setTimeout(() => { el.textContent = noReactions[noCount]; el.classList.add('visible'); }, 60);
+  noCount++;
+  const reactionEmojis = ['😢','🥺','😤'];
+  setHeroEmoji(reactionEmojis[noCount - 1] || '😤');
+  if (noCount >= noReactions.length) {
+    const btn = document.getElementById('btn-no');
+    setTimeout(() => { btn.classList.add('hidden'); }, 200);
+  }
+}
+
+function handleYes() {
+  const th = themes[inviteData?.theme] || themes.romantic;
+  setHeroEmoji(th.heroAfterYes);
+  setTimeout(() => showScreen(2), 300);
+}
+
+function buildScreen2() {
+  const container = document.getElementById('dates-options');
+  const dates = inviteData.dates || [];
+  if (dates.length === 0) {
+    const btn = document.createElement('button');
+    btn.className = 'btn-wide';
+    btn.textContent = 'Continuar 💕';
+    btn.onclick = () => {
+      selectedDate = null; showScreen(3);
+    };
+    container.appendChild(btn);
+    return;
+  }
+  dates.forEach(d => {
+    const card = document.createElement('div');
+    card.className = 'option-card';
+    card.setAttribute('role','button'); card.setAttribute('tabindex','0');
+    const timeStr = d.time ? `às ${d.time}h` : 'Horário a definir';
+    card.innerHTML = `<span class="option-emoji">📅</span><div><div class="option-label">${formatDateBRFull(d.date)}</div><div class="option-meta">${timeStr}</div></div>`;
+    card.onclick = () => {
+      selectedDate = d; showScreen(3);
+    };
+    card.onkeydown = e => { if(e.key==='Enter'||e.key===' ') card.click(); };
+    container.appendChild(card);
+  });
+}
+
+// SCREEN 3: Vibe (ela escolhe)
+function buildScreen3() {
+  const container = document.getElementById('vibe-options');
+  const vibes = [
+    { key: 'romantica',   emoji: '💕', label: 'Romântica',   sub: 'Mood amor total' },
+    { key: 'animada',     emoji: '🎉', label: 'Animada',     sub: 'Energia e diversão' },
+    { key: 'tranquila',   emoji: '😌', label: 'Tranquila',   sub: 'Relax e conversa' },
+    { key: 'aventureira', emoji: '🎯', label: 'Aventureira', sub: 'Fora do comum' },
+    { key: 'surpresa',    emoji: '🎁', label: 'Surpresa',    sub: 'Deixa fluir!' },
+  ];
+  vibes.forEach(v => {
+    const card = document.createElement('div');
+    card.className = 'option-card';
+    card.setAttribute('role','button'); card.setAttribute('tabindex','0');
+    card.innerHTML = `<span class="option-emoji">${v.emoji}</span><div><div class="option-label">${v.label}</div><div class="option-meta">${v.sub}</div></div>`;
+    card.onclick = () => {
+      selectedVibe = v;
+      showScreen(4);
+    };
+    card.onkeydown = e => { if(e.key==='Enter'||e.key===' ') card.click(); };
+    container.appendChild(card);
+  });
+}
+
+// SCREEN 4: Comida/Lugar
+function buildScreen4() {
+  const container = document.getElementById('food-options');
+  const foods = inviteData.foods || [];
+  if (foods.length === 0) {
+    const btn = document.createElement('button');
+    btn.className = 'btn-wide';
+    btn.textContent = 'Confirmar 💕';
+    btn.onclick = () => {
+      selectedFood = {emoji:'🎁',name:'Surpresa!'};
+      buildScreen5(); showScreen(5);
+    };
+    container.appendChild(btn);
+    return;
+  }
+  foods.forEach(f => {
+    const card = document.createElement('div');
+    card.className = 'option-card';
+    card.setAttribute('role','button'); card.setAttribute('tabindex','0');
+    card.innerHTML = `<span class="option-emoji">${f.emoji}</span><div class="option-label">${f.name}</div>`;
+    card.onclick = () => {
+      selectedFood = f; buildScreen5(); showScreen(5);
+    };
+    card.onkeydown = e => { if(e.key==='Enter'||e.key===' ') card.click(); };
+    container.appendChild(card);
+  });
+}
+
+// SCREEN 5: Confirmação
+function buildScreen5() {
+  const t = themes[inviteData.theme] || themes.romantic;
+  const name = inviteData.name || 'você';
+  document.getElementById('confirm-title').textContent = t.confirmTitle;
+  const dateStr = selectedDate
+    ? `${formatDateBRFull(selectedDate.date)}${selectedDate.time ? ' às '+selectedDate.time+'h' : ''}`
+    : 'A definir';
+  const foodStr = selectedFood ? `${selectedFood.emoji} ${selectedFood.name}` : '🎁 Surpresa';
+  const vibeStr = selectedVibe ? `${selectedVibe.emoji} ${selectedVibe.label}` : '✨ Surpresa';
+  document.getElementById('confirm-card').innerHTML = `
+    <div class="confirm-item"><span class="confirm-label">💌 Para</span><span class="confirm-value">${name}</span></div>
+    <div class="confirm-item"><span class="confirm-label">📅 Data</span><span class="confirm-value">${dateStr}</span></div>
+    <div class="confirm-item"><span class="confirm-label">🍽️ Opção</span><span class="confirm-value">${foodStr}</span></div>
+    <div class="confirm-item"><span class="confirm-label">✨ Vibe</span><span class="confirm-value">${vibeStr}</span></div>`;
+  document.getElementById('final-msg').textContent = t.finalMsg(name);
+  if (selectedDate && selectedDate.date) {
+    startCountdown(selectedDate.date, selectedDate.time);
+  } else {
+    document.getElementById('countdown-box').style.display = 'none';
+  }
+  fireConfetti(inviteData.theme);
+}
+
+function showScreen(n) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const target = document.getElementById(`screen-${n}`);
+  target.classList.add('active');
+  target.scrollTop = 0; // Reset scroll to top on screen change
+}
+
+function startCountdown(dateStr, timeStr) {
+  function update() {
+    const diff = new Date(`${dateStr}T${timeStr||'00:00'}:00`) - new Date();
+    if (diff <= 0) {
+      ['days','hours','mins','secs'].forEach(u => document.getElementById(`cd-${u}-num`).textContent='00');
+      clearInterval(countdownInterval); return;
+    }
+    document.getElementById('cd-days-num').textContent  = String(Math.floor(diff/86400000)).padStart(2,'0');
+    document.getElementById('cd-hours-num').textContent = String(Math.floor((diff%86400000)/3600000)).padStart(2,'0');
+    document.getElementById('cd-mins-num').textContent  = String(Math.floor((diff%3600000)/60000)).padStart(2,'0');
+    document.getElementById('cd-secs-num').textContent  = String(Math.floor((diff%60000)/1000)).padStart(2,'0');
+  }
+  update();
+  countdownInterval = setInterval(update, 1000);
+}
+
+function fireConfetti(theme) {
+  const container = document.getElementById('confetti-container');
+  const symbols = (themes[theme]||themes.romantic).particles;
+  for (let i = 0; i < 55; i++) {
+    setTimeout(() => {
+      const el = document.createElement('div');
+      el.className = 'confetti-piece';
+      el.textContent = symbols[Math.floor(Math.random()*symbols.length)];
+      el.style.left = Math.random()*100+'%';
+      el.style.fontSize = (0.9+Math.random()*1.6)+'rem';
+      el.style.animationDuration = (1.8+Math.random()*2.5)+'s';
+      container.appendChild(el);
+      setTimeout(() => el.remove(), 5000);
+    }, i*50);
+  }
+}
+
+function showError() {
+  const heroEl = document.getElementById('hero-emoji');
+  if (heroEl) heroEl.textContent = '😿';
+  document.getElementById('screen-1').classList.remove('active');
+  document.getElementById('error-screen').style.display = 'flex';
+}
+
+function formatDateBR(s) {
+  if (!s) return '';
+  const [y,m,d] = s.split('-');
+  return `${d}/${m}/${y}`;
+}
+function formatDateBRFull(s) {
+  if (!s) return '';
+  return new Date(s+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'});
+}
+</script>
+</body>
+</html>

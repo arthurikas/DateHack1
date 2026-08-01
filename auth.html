@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Date Hack — Entrar</title>
+<meta name="description" content="Acesse o Date Hack e crie convites românticos personalizados para surpreender alguém especial.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0d0f;
+    --bg2: #1a1220;
+    --bg3: #150e18;
+    --pink: #ff2d78;
+    --pink2: #ff4d94;
+    --purple: #7a1f5c;
+    --purple2: #4a0e3d;
+    --text: #f5f5f5;
+    --text-muted: #a0a0a8;
+    --border: rgba(255,45,120,0.2);
+    --glow: rgba(255,45,120,0.25);
+    --radius: 16px;
+    --transition: all 0.3s ease;
+  }
+
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    font-family: 'Quicksand', sans-serif;
+    background: linear-gradient(135deg, #0d0d0f 0%, #1a1220 50%, #150e18 100%);
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; position: relative;
+  }
+
+  /* ===== FLOATING HEARTS ===== */
+  .hearts-bg { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+  .heart { 
+    position: absolute; bottom: -60px; opacity: 0; 
+    animation: floatUp linear infinite;
+    filter: drop-shadow(0 0 6px #ff2d78);
+  }
+  @keyframes floatUp {
+    0%   { transform: translateY(0) rotate(-10deg); opacity: 0; }
+    10%  { opacity: 0.5; }
+    90%  { opacity: 0.12; }
+    100% { transform: translateY(-110vh) rotate(20deg); opacity: 0; }
+  }
+
+  /* ===== MAIN CONTAINER ===== */
+  .auth-container {
+    position: relative; z-index: 10;
+    display: flex;
+    background: rgba(255,255,255,0.03);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 24px;
+    border: 1px solid rgba(255,45,120,0.2);
+    box-shadow: 0 30px 80px rgba(255,45,120,0.15), 0 0 0 1px rgba(255,45,120,0.1);
+    overflow: hidden;
+    width: 100%;
+    max-width: 900px;
+    min-height: 580px;
+    margin: 20px;
+  }
+
+  /* ===== LEFT BRANDING ===== */
+  .auth-left {
+    flex: 1;
+    background: linear-gradient(155deg, #ff2d78 0%, #7a1f5c 60%, #4a0e3d 100%);
+    padding: 48px 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    color: white;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .auth-left::before {
+    content: '💘';
+    position: absolute;
+    font-size: 12rem;
+    opacity: 0.06;
+    bottom: -40px;
+    right: -40px;
+    transform: rotate(15deg);
+  }
+
+  .auth-brand {
+    font-family: 'Poppins', sans-serif;
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: 12px;
+    letter-spacing: -0.5px;
+  }
+
+  .auth-tagline {
+    font-size: 1rem;
+    opacity: 0.85;
+    line-height: 1.6;
+    margin-bottom: 36px;
+    font-weight: 500;
+  }
+
+  .feature-list { list-style: none; display: flex; flex-direction: column; gap: 14px; }
+
+  .feature-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    opacity: 0.92;
+  }
+
+  .feature-icon {
+    width: 32px; height: 32px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+
+  /* ===== RIGHT FORM ===== */
+  .auth-right {
+    flex: 1;
+    padding: 48px 44px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow-y: auto;
+    background: transparent;
+  }
+
+  /* ===== TABS ===== */
+  .auth-tabs {
+    display: flex;
+    background: rgba(255,255,255,0.05);
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 32px;
+    gap: 4px;
+    border: 1px solid rgba(255,45,120,0.15);
+  }
+
+  .auth-tab {
+    flex: 1; padding: 10px; text-align: center;
+    border: none; border-radius: 9px;
+    background: none;
+    font-family: 'Quicksand', sans-serif;
+    font-size: 0.9rem; font-weight: 700;
+    color: #a0a0a8;
+    cursor: pointer;
+    transition: var(--transition);
+  }
+
+  .auth-tab.active {
+    background: linear-gradient(135deg, #ff2d78, #7a1f5c);
+    color: white;
+    box-shadow: 0 2px 12px rgba(255,45,120,0.4);
+  }
+
+  /* ===== FORM PANEL ===== */
+  .form-panel { display: none; animation: fadeIn 0.35s ease forwards; }
+  .form-panel.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .form-title {
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.5rem; font-weight: 700;
+    color: #f5f5f5;
+    margin-bottom: 6px;
+  }
+
+  .form-sub { font-size: 0.85rem; color: #a0a0a8; margin-bottom: 24px; font-weight: 500; }
+
+  /* ===== INPUTS ===== */
+  .field-group { margin-bottom: 16px; }
+
+  .field-label {
+    display: block; font-size: 0.78rem; font-weight: 700;
+    color: #ff4d94;
+    margin-bottom: 6px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+
+  .field-input {
+    width: 100%; padding: 12px 16px;
+    border: 1.5px solid rgba(255,45,120,0.35);
+    border-radius: 12px;
+    font-family: 'Quicksand', sans-serif;
+    font-size: 0.95rem; font-weight: 600;
+    color: #1a0a10;
+    outline: none;
+    transition: var(--transition);
+    background: #ffffff;
+  }
+
+  .field-input:focus {
+    border-color: #ff2d78;
+    box-shadow: 0 0 0 3px rgba(255,45,120,0.2);
+  }
+
+  .field-input::placeholder { color: #a0808a; font-weight: 400; }
+
+  /* ===== SUBMIT BUTTON ===== */
+  .btn-submit {
+    width: 100%; padding: 14px;
+    background: linear-gradient(135deg, #ff2d78, #7a1f5c);
+    border: none; border-radius: 12px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 1rem; font-weight: 700;
+    color: white; cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 6px 20px rgba(255,45,120,0.35);
+    margin-top: 8px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+
+  .btn-submit:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 32px rgba(255,45,120,0.55);
+  }
+
+  .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* ===== SPINNER ===== */
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: none;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ===== ALERTS ===== */
+  .alert {
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    display: none;
+    align-items: flex-start;
+    gap: 10px;
+    line-height: 1.5;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .alert.visible { display: flex; }
+
+  .alert-error { background: rgba(220,38,38,0.15); border: 1.5px solid rgba(220,38,38,0.4); color: #fca5a5; }
+  .alert-warning { background: rgba(234,179,8,0.1); border: 1.5px solid rgba(234,179,8,0.3); color: #fde68a; }
+  .alert-success { background: rgba(22,163,74,0.1); border: 1.5px solid rgba(22,163,74,0.3); color: #86efac; }
+  .alert-info { background: rgba(255,45,120,0.1); border: 1.5px solid rgba(255,45,120,0.25); color: #ff4d94; }
+
+  /* ===== STATUS SCREENS ===== */
+  .status-screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 20px 0;
+  }
+
+  .status-screen.visible { display: flex; }
+
+  .status-icon { font-size: 3.5rem; margin-bottom: 16px; }
+  .status-title { font-family: 'Poppins', sans-serif; font-size: 1.3rem; font-weight: 700; color: #f5f5f5; margin-bottom: 8px; }
+  .status-msg { font-size: 0.9rem; color: #a0a0a8; line-height: 1.6; margin-bottom: 20px; }
+
+  .btn-secondary {
+    padding: 10px 24px;
+    border: 1.5px solid rgba(255,45,120,0.35);
+    border-radius: 10px;
+    background: rgba(255,45,120,0.08);
+    font-family: 'Quicksand', sans-serif;
+    font-size: 0.9rem; font-weight: 700;
+    color: #ff4d94; cursor: pointer;
+    transition: var(--transition);
+  }
+
+  .btn-secondary:hover { border-color: #ff2d78; background: rgba(255,45,120,0.15); box-shadow: 0 0 12px rgba(255,45,120,0.25); }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 700px) {
+    html, body { overflow: auto; }
+    .auth-container { flex-direction: column; min-height: auto; border-radius: 0; margin: 0; min-height: 100vh; background: transparent; border: none; box-shadow: none; }
+    .auth-left { padding: 32px 24px 24px; }
+    .auth-left::before { font-size: 6rem; }
+    .auth-brand { font-size: 1.5rem; }
+    .feature-list { display: none; }
+    .auth-right { padding: 32px 24px; background: transparent; }
+    .auth-tagline { margin-bottom: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hearts-bg" id="hearts-bg"></div>
+
+<div class="auth-container" role="main">
+
+  <!-- LEFT: Branding -->
+  <div class="auth-left">
+    <div class="auth-brand">💘 Date Hack</div>
+    <p class="auth-tagline">Crie convites de date personalizados e surpreenda alguém especial. Simples, bonito e com seu toque único.</p>
+    <ul class="feature-list">
+      <li class="feature-item">
+        <div class="feature-icon">✨</div>
+        Wizard de 6 etapas totalmente personalizado
+      </li>
+      <li class="feature-item">
+        <div class="feature-icon">🎨</div>
+        3 temas visuais: Romântico, Descontraído, Elegante
+      </li>
+      <li class="feature-item">
+        <div class="feature-icon">📲</div>
+        QR Code automático + link pra compartilhar
+      </li>
+      <li class="feature-item">
+        <div class="feature-icon">♾️</div>
+        Uso ilimitado — crie quantos convites quiser
+      </li>
+    </ul>
+  </div>
+
+  <!-- RIGHT: Form -->
+  <div class="auth-right" id="auth-right">
+
+    <!-- Tabs -->
+    <div class="auth-tabs" id="auth-tabs" role="tablist">
+      <button class="auth-tab active" id="tab-login" onclick="switchTab('login')" role="tab" aria-selected="true" aria-controls="panel-login">Entrar</button>
+      <button class="auth-tab" id="tab-register" onclick="switchTab('register')" role="tab" aria-selected="false" aria-controls="panel-register">Criar conta</button>
+    </div>
+
+    <!-- Alert -->
+    <div class="alert alert-error" id="alert-error" role="alert">
+      <span>❌</span>
+      <span id="alert-error-msg"></span>
+    </div>
+
+    <!-- LOGIN PANEL -->
+    <div class="form-panel active" id="panel-login" role="tabpanel">
+      <h1 class="form-title">Bem-vindo de volta 👋</h1>
+      <p class="form-sub">Entre com seu e-mail e senha pra acessar o painel.</p>
+
+      <form id="login-form" onsubmit="handleLogin(event)" novalidate>
+        <div class="field-group">
+          <label class="field-label" for="login-email">E-mail</label>
+          <input class="field-input" id="login-email" type="email" placeholder="seu@email.com" required autocomplete="email">
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="login-password">Senha</label>
+          <input class="field-input" id="login-password" type="password" placeholder="••••••••" required autocomplete="current-password">
+        </div>
+
+        <button class="btn-submit" type="submit" id="btn-login">
+          <span class="spinner" id="spinner-login"></span>
+          <span id="btn-login-text">Entrar 🚀</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- REGISTER PANEL -->
+    <div class="form-panel" id="panel-register" role="tabpanel">
+      <h2 class="form-title">Criar sua conta 🌸</h2>
+      <p class="form-sub">Crie sua conta. O acesso é liberado pelo administrador.</p>
+
+      <form id="register-form" onsubmit="handleRegister(event)" novalidate>
+        <div class="field-group">
+          <label class="field-label" for="reg-name">Seu nome</label>
+          <input class="field-input" id="reg-name" type="text" placeholder="Como te chamamos?" required autocomplete="name">
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="reg-email">E-mail</label>
+          <input class="field-input" id="reg-email" type="email" placeholder="seu@email.com" required autocomplete="email">
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="reg-password">Senha</label>
+          <input class="field-input" id="reg-password" type="password" placeholder="Mínimo 6 caracteres" required minlength="6" autocomplete="new-password">
+        </div>
+
+        <button class="btn-submit" type="submit" id="btn-register">
+          <span class="spinner" id="spinner-register"></span>
+          <span id="btn-register-text">Criar conta ✨</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- STATUS: Awaiting approval -->
+    <div class="status-screen" id="status-pending">
+      <div class="status-icon">⏳</div>
+      <div class="status-title">Conta criada!</div>
+      <p class="status-msg">Seu cadastro foi recebido. Um administrador vai liberar seu acesso em breve.<br><br>Se você já recebeu um link de acesso, seu e-mail precisa ser aprovado primeiro. Entre em contato com quem te indicou o Date Hack.</p>
+      <div style="display:flex;gap:10px">
+        <button class="btn-secondary" onclick="forceLogout()">🚪 Sair / Tentar outro e-mail</button>
+      </div>
+    </div>
+
+    <!-- STATUS: Suspended -->
+    <div class="status-screen" id="status-suspended">
+      <div class="status-icon">🚫</div>
+      <div class="status-title">Acesso suspenso</div>
+      <p class="status-msg">Sua conta foi temporariamente suspensa. Entre em contato com o administrador para mais informações.</p>
+      <button class="btn-secondary" onclick="backToForm()">← Voltar</button>
+    </div>
+
+    <!-- STATUS: Email confirm -->
+    <div class="status-screen" id="status-confirm-email">
+      <div class="status-icon">📬</div>
+      <div class="status-title">Confirme seu e-mail</div>
+      <p class="status-msg">Enviamos um link de confirmação para o seu e-mail. Clique nele e depois volte aqui pra entrar.</p>
+      <button class="btn-secondary" onclick="switchTab('login')">Já confirmei, entrar →</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ===== SUPABASE CONFIG =====
+const SUPABASE_URL = 'https://swyjmctcxxnsdsqdursv.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3eWptY3RjeHhuc2RzcWR1cnN2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NTUwNTkwNiwiZXhwIjoyMTAxMDgxOTA2fQ.zlqTN1-5WU8oBj2xU7NoL0voZfCaDCAq7l-G0MTgUcM';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { autoRefreshToken: true, persistSession: true }
+});
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', async () => {
+  createHearts();
+
+  // If already logged in, redirect
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    await routeUser(session.user);
+  }
+});
+
+// ===== HEARTS =====
+function createHearts() {
+  const bg = document.getElementById('hearts-bg');
+  const symbols = ['❤️','💕','💗','💖','💝','✨','🌸'];
+  for (let i = 0; i < 12; i++) {
+    const h = document.createElement('div');
+    h.className = 'heart';
+    h.textContent = symbols[Math.floor(Math.random() * symbols.length)];
+    h.style.left = Math.random() * 100 + '%';
+    h.style.animationDuration = (7 + Math.random() * 8) + 's';
+    h.style.animationDelay = (Math.random() * 10) + 's';
+    h.style.fontSize = (0.8 + Math.random() * 1.1) + 'rem';
+    bg.appendChild(h);
+  }
+}
+
+// ===== TAB SWITCH =====
+function switchTab(tab) {
+  hideAllStatuses();
+  clearAlert();
+  document.querySelectorAll('.auth-tab').forEach(t => {
+    t.classList.toggle('active', t.id === `tab-${tab}`);
+    t.setAttribute('aria-selected', t.id === `tab-${tab}`);
+  });
+  document.querySelectorAll('.form-panel').forEach(p => {
+    p.classList.toggle('active', p.id === `panel-${tab}`);
+  });
+  document.getElementById('auth-tabs').style.display = 'flex';
+}
+
+function hideAllStatuses() {
+  document.querySelectorAll('.status-screen').forEach(s => s.classList.remove('visible'));
+  document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('auth-tabs').style.display = 'flex';
+}
+
+function showStatus(id) {
+  hideAllStatuses();
+  document.getElementById('auth-tabs').style.display = 'none';
+  document.getElementById(id).classList.add('visible');
+}
+
+function backToForm() {
+  switchTab('login');
+}
+
+// ===== ALERT =====
+function showAlert(msg) {
+  const el = document.getElementById('alert-error');
+  document.getElementById('alert-error-msg').textContent = msg;
+  el.classList.add('visible');
+}
+
+function clearAlert() {
+  document.getElementById('alert-error').classList.remove('visible');
+}
+
+// ===== LOADING =====
+function setLoading(btnId, spinnerId, textId, loading) {
+  document.getElementById(btnId).disabled = loading;
+  document.getElementById(spinnerId).style.display = loading ? 'block' : 'none';
+  document.getElementById(textId).style.opacity = loading ? '0' : '1';
+}
+
+// ===== ROUTE USER =====
+async function routeUser(user) {
+  try {
+    const userEmail = (user.email || '').toLowerCase().trim();
+
+    // Check license by email
+    const { data: licenciados, error } = await sb
+      .from('usuarios_licenciados')
+      .select('*');
+
+    if (error) throw error;
+
+    const licenca = (licenciados || []).find(l => (l.email || '').toLowerCase().trim() === userEmail);
+
+    if (!licenca) {
+      // If table is empty or user not in table, sign out so user can try again
+      showStatus('status-pending');
+      return;
+    }
+
+    if (!licenca.ativo) {
+      showStatus('status-suspended');
+      return;
+    }
+
+    // Update auth_user_id
+    if (!licenca.auth_user_id) {
+      await sb
+        .from('usuarios_licenciados')
+        .update({ auth_user_id: user.id })
+        .eq('id', licenca.id);
+    }
+
+    // Route based on role
+    if (licenca.is_admin) {
+      window.location.href = 'admin.html';
+    } else {
+      window.location.href = 'dashboard.html';
+    }
+  } catch (err) {
+    console.error(err);
+    showAlert('Erro ao verificar acesso. Tente novamente.');
+  }
+}
+
+async function forceLogout() {
+  await sb.auth.signOut();
+  window.location.reload();
+}
+
+// ===== LOGIN =====
+async function handleLogin(e) {
+  e.preventDefault();
+  clearAlert();
+
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+
+  if (!email || !password) {
+    showAlert('Preencha e-mail e senha.');
+    return;
+  }
+
+  setLoading('btn-login', 'spinner-login', 'btn-login-text', true);
+
+  try {
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      if (error.message.includes('Invalid login')) {
+        showAlert('E-mail ou senha incorretos. Verifique e tente novamente.');
+      } else if (error.message.includes('Email not confirmed')) {
+        showAlert('Confirme seu e-mail antes de entrar. Verifique sua caixa de entrada.');
+      } else {
+        showAlert(error.message);
+      }
+      setLoading('btn-login', 'spinner-login', 'btn-login-text', false);
+      return;
+    }
+
+    await routeUser(data.user);
+  } catch (err) {
+    showAlert('Erro inesperado. Tente novamente.');
+    setLoading('btn-login', 'spinner-login', 'btn-login-text', false);
+  }
+}
+
+// ===== REGISTER =====
+async function handleRegister(e) {
+  e.preventDefault();
+  clearAlert();
+
+  const name = document.getElementById('reg-name').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-password').value;
+
+  if (!name || !email || !password) {
+    showAlert('Preencha todos os campos.');
+    return;
+  }
+
+  if (password.length < 6) {
+    showAlert('A senha precisa ter pelo menos 6 caracteres.');
+    return;
+  }
+
+  setLoading('btn-register', 'spinner-register', 'btn-register-text', true);
+
+  try {
+    const { data, error } = await sb.auth.signUp({
+      email,
+      password,
+      options: { data: { name } }
+    });
+
+    if (error) {
+      if (error.message.includes('already registered')) {
+        showAlert('Este e-mail já está cadastrado. Use a aba "Entrar".');
+      } else {
+        showAlert(error.message);
+      }
+      setLoading('btn-register', 'spinner-register', 'btn-register-text', false);
+      return;
+    }
+
+    // If email confirmation is required
+    if (data.user && !data.session) {
+      showStatus('status-confirm-email');
+      return;
+    }
+
+    // No email confirmation required — check license
+    if (data.user) {
+      // Try to update nome in usuarios_licenciados if email exists
+      await sb
+        .from('usuarios_licenciados')
+        .update({ auth_user_id: data.user.id, nome: name })
+        .eq('email', email)
+        .is('auth_user_id', null);
+
+      await routeUser(data.user);
+    }
+  } catch (err) {
+    showAlert('Erro ao criar conta. Tente novamente.');
+    setLoading('btn-register', 'spinner-register', 'btn-register-text', false);
+  }
+}
+</script>
+</body>
+</html>
