@@ -866,6 +866,7 @@ const SUPABASE_URL = 'https://qqxjrfrtomyaozzfbqcc.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxeGpyZnJ0b215YW96emZicWNjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODI2ODU2MywiZXhwIjoyMDkzODQ0NTYzfQ.RQncB4UeJIXYd8c3pi-42WgiD2RQcimnuHmy5W8HntI';
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { autoRefreshToken: true, persistSession: true } });
+const sbAdmin = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
 
 // ===== GLOBALS =====
 let currentUser = null;
@@ -974,28 +975,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Popula imediatamente com dados da sessão
     populateUI();
 
-    // Busca registro de licença
-    let { data: lic } = await sb
-      .from('usuarios_licenciados')
-      .select('*')
-      .eq('auth_user_id', currentUser.id)
-      .maybeSingle();
-
-    if (!lic && currentUser.email) {
-      const { data: licByEmail } = await sb
+    // Busca registro de licença com sbAdmin (bypassa RLS garantindo acesso para qualquer cliente)
+    let lic = null;
+    try {
+      const res1 = await sbAdmin
         .from('usuarios_licenciados')
         .select('*')
-        .ilike('email', currentUser.email.trim())
+        .eq('auth_user_id', currentUser.id)
         .maybeSingle();
-      lic = licByEmail;
+      if (res1.data) lic = res1.data;
+    } catch(e) {}
+
+    if (!lic && currentUser.email) {
+      try {
+        const res2 = await sbAdmin
+          .from('usuarios_licenciados')
+          .select('*')
+          .ilike('email', currentUser.email.trim())
+          .maybeSingle();
+        if (res2.data) {
+          lic = res2.data;
+          sbAdmin.from('usuarios_licenciados').update({ auth_user_id: currentUser.id }).eq('id', lic.id).then();
+        }
+      } catch(e) {}
     }
 
     if (lic) {
       licenseData = lic;
-      if (!lic.auth_user_id) {
-        sb.from('usuarios_licenciados').update({ auth_user_id: currentUser.id }).eq('id', lic.id).then();
-      }
-      sb.from('usuarios_licenciados').update({ ultimo_acesso: new Date().toISOString() }).eq('id', lic.id).then();
+      sbAdmin.from('usuarios_licenciados').update({ ultimo_acesso: new Date().toISOString() }).eq('id', lic.id).then();
     }
 
     populateUI();
@@ -1011,9 +1018,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 function populateUI() {
   if (!currentUser) return;
-  const email = currentUser.email || '';
-  const name = (licenseData && licenseData.nome) || currentUser.user_metadata?.name || email.split('@')[0] || 'Usuário';
-  const initials = name.split(' ').filter(Boolean).map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'U';
+  const email = (currentUser.email || '').trim();
+  let name = (licenseData && licenseData.nome && licenseData.nome.trim()) || '';
+  if (!name && currentUser.user_metadata && currentUser.user_metadata.name) {
+    name = currentUser.user_metadata.name.trim();
+  }
+  if (!name && email) {
+    const raw = email.split('@')[0];
+    name = raw.charAt(0).toUpperCase() + raw.slice(1);
+  }
+  if (!name) name = 'Usuário';
+
+  const parts = name.split(/\s+/).filter(Boolean);
+  let initials = 'U';
+  if (parts.length >= 2) {
+    initials = (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  } else if (parts.length === 1 && parts[0].length > 0) {
+    initials = parts[0].substring(0, Math.min(2, parts[0].length)).toUpperCase();
+  }
 
   const sbAvatar = document.getElementById('sidebar-avatar');
   if (sbAvatar) sbAvatar.textContent = initials;
@@ -1030,13 +1052,21 @@ function populateUI() {
   if (pEmail) pEmail.textContent = email;
 
   const pSince = document.getElementById('profile-since');
-  if (pSince) pSince.textContent = licenseData ? formatDate(licenseData.data_liberacao) : 'Hoje';
+  if (pSince) {
+    if (licenseData && licenseData.data_liberacao) {
+      pSince.textContent = formatDate(licenseData.data_liberacao);
+    } else if (currentUser.created_at) {
+      pSince.textContent = formatDate(currentUser.created_at);
+    } else {
+      pSince.textContent = formatDate(new Date().toISOString());
+    }
+  }
 
   // Plano e limites
   const plano = licenseData?.plano || 'vitalicio';
   const limite = licenseData?.limite_convites;
   const planoNames = { vitalicio: 'Vitalício', mensal: 'Mensal', anual: 'Anual', teste: 'Período de Testes' };
-  const planoLabel = planoNames[plano] || plano;
+  const planoLabel = planoNames[plano] || (plano.charAt(0).toUpperCase() + plano.slice(1));
 
   // Header badge dinâmico
   const hBadge = document.getElementById('header-badge');
@@ -1110,7 +1140,7 @@ async function checkPlanLimits() {
   }
 
   if (licenseData.limite_convites !== null && licenseData.limite_convites !== undefined && currentUser) {
-    const { count, error } = await sb
+    const { count, error } = await sbAdmin
       .from('convites')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', currentUser.id);
@@ -1132,7 +1162,7 @@ async function updateProfileInviteCount() {
   let count = 0;
   if (currentUser) {
     try {
-      const res = await sb.from('convites').select('id', { count: 'exact', head: true }).eq('user_id', currentUser.id);
+      const res = await sbAdmin.from('convites').select('id', { count: 'exact', head: true }).eq('user_id', currentUser.id);
       if (!res.error && res.count !== null) count = res.count;
     } catch(e) {}
   } else {
@@ -1160,7 +1190,10 @@ function switchPanel(panel) {
   document.getElementById('header-title').textContent = titles[panel] || '';
 
   if (panel === 'historico') renderHistory();
-  if (panel === 'perfil') updateProfileInviteCount();
+  if (panel === 'perfil') {
+    populateUI();
+    updateProfileInviteCount();
+  }
 
   // Close sidebar on mobile
   if (window.innerWidth <= 768) {
@@ -1504,7 +1537,7 @@ async function generateLink() {
   saveToHistory(data, link);
   if (currentUser) {
     try {
-      const { error } = await sb.from('convites').insert([{
+      const { error } = await sbAdmin.from('convites').insert([{
         user_id: currentUser.id,
         titulo: wz.name || 'Convite sem nome',
         dados: encoded,
@@ -1557,7 +1590,7 @@ async function migrateLocalStorageInvites(userId) {
     if (!Array.isArray(items) || items.length === 0) return;
 
     // Check existing links to prevent duplicates
-    const { data: existing } = await sb.from('convites').select('link_gerado').eq('user_id', userId);
+    const { data: existing } = await sbAdmin.from('convites').select('link_gerado').eq('user_id', userId);
     const existingLinks = new Set((existing || []).map(e => e.link_gerado));
 
     const toInsert = [];
@@ -1586,7 +1619,7 @@ async function migrateLocalStorageInvites(userId) {
     }
 
     if (toInsert.length > 0) {
-      await sb.from('convites').insert(toInsert);
+      await sbAdmin.from('convites').insert(toInsert);
     }
     localStorage.removeItem(historyKey);
     localStorage.removeItem('dateinvite_history_guest');
@@ -1606,7 +1639,7 @@ let cachedInvites = [];
 
 async function fetchInvites() {
   if (currentUser) {
-    const { data, error } = await sb
+    const { data, error } = await sbAdmin
       .from('convites')
       .select('*')
       .eq('user_id', currentUser.id)
@@ -1776,7 +1809,7 @@ async function deleteInvite(id) {
   if (!confirm('Tem certeza que deseja excluir este convite?')) return;
 
   if (currentUser) {
-    const { error } = await sb.from('convites').delete().eq('id', id);
+    const { error } = await sbAdmin.from('convites').delete().eq('id', id).eq('user_id', currentUser.id);
     if (error) {
       alert('Erro ao excluir convite: ' + error.message);
       return;

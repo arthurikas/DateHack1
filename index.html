@@ -294,6 +294,9 @@ const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { autoRefreshToken: true, persistSession: true }
 });
+const sbAdmin = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { autoRefreshToken: false, persistSession: false }
+});
 
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', async () => {
@@ -349,22 +352,22 @@ async function routeUser(user) {
   try {
     const userEmail = (user.email || '').toLowerCase().trim();
 
-    // Check license in database
-    let { data: lic } = await sb
+    // Check license in database via sbAdmin (bypassa RLS)
+    let { data: lic } = await sbAdmin
       .from('usuarios_licenciados')
       .select('*')
       .eq('auth_user_id', user.id)
       .maybeSingle();
 
     if (!lic) {
-      const { data: l } = await sb
+      const { data: l } = await sbAdmin
         .from('usuarios_licenciados')
         .select('*')
         .ilike('email', userEmail)
         .maybeSingle();
       lic = l;
       if (lic && !lic.auth_user_id) {
-        await sb.from('usuarios_licenciados').update({ auth_user_id: user.id }).eq('id', lic.id);
+        await sbAdmin.from('usuarios_licenciados').update({ auth_user_id: user.id }).eq('id', lic.id);
       }
     }
 
