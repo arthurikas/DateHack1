@@ -1500,7 +1500,8 @@ async function generateLink() {
   const captionEl = document.getElementById('caption-text');
   if (captionEl) captionEl.textContent = captions[wz.theme] || captions.romantic;
 
-  // Persist to Cloud convites
+  // Persist to Cloud convites + LocalStorage fallback
+  saveToHistory(data, link);
   if (currentUser) {
     try {
       const { error } = await sb.from('convites').insert([{
@@ -1513,8 +1514,6 @@ async function generateLink() {
     } catch(err) {
       console.warn('Falha na requisição ao salvar convite:', err);
     }
-  } else {
-    saveToHistory(data, link);
   }
 
   await updateProfileInviteCount();

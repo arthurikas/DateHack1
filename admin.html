@@ -822,7 +822,10 @@
 const SUPABASE_URL = 'https://qqxjrfrtomyaozzfbqcc.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxeGpyZnJ0b215YW96emZicWNjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODI2ODU2MywiZXhwIjoyMDkzODQ0NTYzfQ.RQncB4UeJIXYd8c3pi-42WgiD2RQcimnuHmy5W8HntI';
 const { createClient } = supabase;
+// Cliente para autenticação de sessão
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { autoRefreshToken: true, persistSession: true } });
+// Cliente dedicado para operações de administração (sempre executa com service_role sem RLS)
+const sbAdmin = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
 
 // ===== STATE =====
 let allUsers = [];
@@ -839,9 +842,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { data: { session } } = await sb.auth.getSession();
     if (session && session.user) {
       currentUser = session.user;
-      let { data: lic } = await sb.from('usuarios_licenciados').select('*').eq('auth_user_id', currentUser.id).maybeSingle();
+      let { data: lic } = await sbAdmin.from('usuarios_licenciados').select('*').eq('auth_user_id', currentUser.id).maybeSingle();
       if (!lic && currentUser.email) {
-        const { data: licByEmail } = await sb.from('usuarios_licenciados').select('*').ilike('email', currentUser.email.trim()).maybeSingle();
+        const { data: licByEmail } = await sbAdmin.from('usuarios_licenciados').select('*').ilike('email', currentUser.email.trim()).maybeSingle();
         lic = licByEmail;
       }
       if (lic) {
@@ -905,13 +908,13 @@ function switchPanel(panel) {
 async function loadData() {
   try {
     // 1. Carrega todos os usuários
-    const { data: users, error: errUsers } = await sb.from('usuarios_licenciados').select('*').order('data_liberacao', { ascending: false });
+    const { data: users, error: errUsers } = await sbAdmin.from('usuarios_licenciados').select('*').order('data_liberacao', { ascending: false });
     if (errUsers) throw errUsers;
     allUsers = users || [];
 
     // 2. Carrega contagem de convites por usuário via RPC
     try {
-      const { data: counts, error: errCounts } = await sb.rpc('admin_get_user_invite_counts');
+      const { data: counts, error: errCounts } = await sbAdmin.rpc('admin_get_user_invite_counts');
       if (!errCounts && counts) {
         userInviteCounts = {};
         counts.forEach(c => { userInviteCounts[c.auth_user_id] = parseInt(c.total_convites) || 0; });
@@ -942,7 +945,7 @@ async function loadData() {
 async function loadKPIs() {
   let metrics = null;
   try {
-    const { data, error } = await sb.rpc('admin_get_metrics', { p_days: currentPeriodDays });
+    const { data, error } = await sbAdmin.rpc('admin_get_metrics', { p_days: currentPeriodDays });
     if (!error && data) metrics = data;
   } catch(e) {}
 
@@ -1002,7 +1005,7 @@ async function loadKPIs() {
 async function loadCharts() {
   let chartData = null;
   try {
-    const { data, error } = await sb.rpc('admin_get_chart_data', { p_days: currentPeriodDays });
+    const { data, error } = await sbAdmin.rpc('admin_get_chart_data', { p_days: currentPeriodDays });
     if (!error && data) chartData = data;
   } catch(e) {}
 
@@ -1270,7 +1273,7 @@ function drawHorizontalBarChart(canvasId, data, color) {
 async function loadQuickLists() {
   let lists = null;
   try {
-    const { data, error } = await sb.rpc('admin_get_quick_lists');
+    const { data, error } = await sbAdmin.rpc('admin_get_quick_lists');
     if (!error && data) lists = data;
   } catch(e) {}
 
@@ -1431,7 +1434,7 @@ function renderUsersTable(users) {
 
 // ===== TOGGLE USER STATUS =====
 async function toggleUser(id, ativo) {
-  const { error } = await sb.from('usuarios_licenciados').update({ ativo }).eq('id', id);
+  const { error } = await sbAdmin.from('usuarios_licenciados').update({ ativo }).eq('id', id);
   if (error) { showToast('Erro ao atualizar status: ' + error.message, 'error'); return; }
   showToast(ativo ? 'Cliente ativado com sucesso ✓' : 'Acesso do cliente suspenso', ativo ? 'success' : 'info');
   await loadData();
@@ -1502,10 +1505,15 @@ async function confirmAddUser() {
     const json = await res.json();
     if (res.ok && json.id) {
       authUserId = json.id;
-    } else if (json.msg && json.msg.includes('already')) {
-      // Já existe no auth
-    } else if (!res.ok) {
-      throw new Error(json.msg || json.message || JSON.stringify(json));
+    } else {
+      try {
+        const resSearch = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+          headers: { 'Authorization': `Bearer ${SUPABASE_KEY}`, 'apikey': SUPABASE_KEY }
+        });
+        const dataSearch = await resSearch.json();
+        const found = (dataSearch.users || []).find(u => (u.email || '').toLowerCase() === email.toLowerCase());
+        if (found) authUserId = found.id;
+      } catch(se) {}
     }
   } catch(e) {
     console.warn('Criação no Supabase Auth retornou:', e.message);
@@ -1525,7 +1533,7 @@ async function confirmAddUser() {
   };
   if (authUserId) payload.auth_user_id = authUserId;
 
-  const { error } = await sb.from('usuarios_licenciados').insert(payload);
+  const { error } = await sbAdmin.from('usuarios_licenciados').insert(payload);
 
   btn.disabled = false;
   document.getElementById('add-spinner').style.display = 'none';
@@ -1582,7 +1590,7 @@ async function confirmEditUser() {
     observacao: obs || null
   };
 
-  const { error } = await sb.from('usuarios_licenciados').update(payload).eq('id', id);
+  const { error } = await sbAdmin.from('usuarios_licenciados').update(payload).eq('id', id);
   if (error) { showToast('Erro ao salvar alterações: ' + error.message, 'error'); return; }
 
   showToast('Dados do cliente atualizados com sucesso ✓', 'success');
@@ -1666,7 +1674,7 @@ function closeConfirmModal() { document.getElementById('confirm-modal').classLis
 
 async function confirmDeleteUser() {
   const id = document.getElementById('confirm-user-id').value;
-  const { error } = await sb.from('usuarios_licenciados').delete().eq('id', id);
+  const { error } = await sbAdmin.from('usuarios_licenciados').delete().eq('id', id);
   if (error) { showToast('Erro ao excluir: ' + error.message, 'error'); closeConfirmModal(); return; }
   showToast('Cliente removido do sistema.', 'info');
   closeConfirmModal();
