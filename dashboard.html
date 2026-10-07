@@ -609,6 +609,9 @@
     <button class="nav-item" id="nav-perfil" onclick="switchPanel('perfil')">
       <span class="nav-icon">👤</span> Meu Perfil
     </button>
+    <button class="nav-item" id="nav-admin" onclick="window.location.href='admin.html'" style="display:none;background:rgba(255,45,120,0.12);color:#ff4d94;border:1px solid rgba(255,45,120,0.3);margin-top:8px">
+      <span class="nav-icon">🛡️</span> Painel Admin
+    </button>
   </nav>
 
   <div class="sidebar-footer">
@@ -630,7 +633,10 @@
   <header class="main-header">
     <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Abrir menu">☰</button>
     <div class="header-title" id="header-title">✨ Criar Convite</div>
-    <div class="header-badge">Uso Ilimitado ♾️</div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="header-badge" id="header-badge">Carregando...</div>
+      <button id="header-admin-btn" onclick="window.location.href='admin.html'" style="display:none;padding:6px 14px;border-radius:20px;font-family:'Quicksand',sans-serif;font-size:0.75rem;font-weight:700;background:rgba(255,45,120,0.15);border:1px solid #ff2d78;color:#ff4d94;cursor:pointer">🛡️ Painel Admin</button>
+    </div>
   </header>
 
   <!-- PANEL: Criar Convite (Wizard) -->
@@ -940,59 +946,114 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderDots();
   setupStep1();
 
-  historyKey = 'dateinvite_history_guest';
-
   try {
     const { data: { session } } = await sb.auth.getSession();
-    if (session) {
-      currentUser = session.user;
-      historyKey = `dateinvite_history_${currentUser.id}`;
-      const { data: lic } = await sb.from('usuarios_licenciados').select('*').eq('email', currentUser.email).maybeSingle();
-      if (lic) {
-        licenseData = lic;
-        // Atualiza ultimo_acesso silenciosamente
-        sb.from('usuarios_licenciados').update({ ultimo_acesso: new Date().toISOString() }).eq('id', lic.id).then();
-      }
-      populateUI();
-      await migrateLocalStorageInvites(currentUser.id);
-      await checkPlanLimits();
+    if (!session || !session.user) {
+      // Redireciona para login se não autenticado
+      window.location.href = 'auth.html';
+      return;
     }
+
+    currentUser = session.user;
+    historyKey = `dateinvite_history_${currentUser.id}`;
+
+    // Popula imediatamente com dados da sessão
+    populateUI();
+
+    // Busca registro de licença
+    let { data: lic } = await sb
+      .from('usuarios_licenciados')
+      .select('*')
+      .eq('auth_user_id', currentUser.id)
+      .maybeSingle();
+
+    if (!lic && currentUser.email) {
+      const { data: licByEmail } = await sb
+        .from('usuarios_licenciados')
+        .select('*')
+        .ilike('email', currentUser.email.trim())
+        .maybeSingle();
+      lic = licByEmail;
+    }
+
+    if (lic) {
+      licenseData = lic;
+      if (!lic.auth_user_id) {
+        sb.from('usuarios_licenciados').update({ auth_user_id: currentUser.id }).eq('id', lic.id).then();
+      }
+      sb.from('usuarios_licenciados').update({ ultimo_acesso: new Date().toISOString() }).eq('id', lic.id).then();
+    }
+
+    populateUI();
+    await migrateLocalStorageInvites(currentUser.id);
+    await checkPlanLimits();
+
   } catch(e) {
-    console.warn('Auth check skipped:', e);
+    console.warn('Erro na autenticação:', e);
   }
 
   document.getElementById('loading-overlay').classList.add('hidden');
 });
 
 function populateUI() {
-  if (!licenseData || !currentUser) return;
-  const name = licenseData.nome || currentUser.email.split('@')[0];
-  const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-  document.getElementById('sidebar-avatar').textContent = initials;
-  document.getElementById('sidebar-name').textContent = name;
-  document.getElementById('sidebar-email').textContent = currentUser.email;
-  document.getElementById('profile-avatar').textContent = initials;
-  document.getElementById('profile-name').textContent = name;
-  document.getElementById('profile-email').textContent = currentUser.email;
-  document.getElementById('profile-since').textContent = formatDate(licenseData.data_liberacao);
+  if (!currentUser) return;
+  const email = currentUser.email || '';
+  const name = (licenseData && licenseData.nome) || currentUser.user_metadata?.name || email.split('@')[0] || 'Usuário';
+  const initials = name.split(' ').filter(Boolean).map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'U';
 
+  const sbAvatar = document.getElementById('sidebar-avatar');
+  if (sbAvatar) sbAvatar.textContent = initials;
+  const sbName = document.getElementById('sidebar-name');
+  if (sbName) sbName.textContent = name;
+  const sbEmail = document.getElementById('sidebar-email');
+  if (sbEmail) sbEmail.textContent = email;
+
+  const pAvatar = document.getElementById('profile-avatar');
+  if (pAvatar) pAvatar.textContent = initials;
+  const pName = document.getElementById('profile-name');
+  if (pName) pName.textContent = name;
+  const pEmail = document.getElementById('profile-email');
+  if (pEmail) pEmail.textContent = email;
+
+  const pSince = document.getElementById('profile-since');
+  if (pSince) pSince.textContent = licenseData ? formatDate(licenseData.data_liberacao) : 'Hoje';
+
+  // Plano e limites
+  const plano = licenseData?.plano || 'vitalicio';
+  const limite = licenseData?.limite_convites;
   const planoNames = { vitalicio: 'Vitalício', mensal: 'Mensal', anual: 'Anual', teste: 'Período de Testes' };
+  const planoLabel = planoNames[plano] || plano;
+
+  // Header badge dinâmico
+  const hBadge = document.getElementById('header-badge');
+  if (hBadge) {
+    if (limite !== null && limite !== undefined) {
+      hBadge.textContent = `${planoLabel} • Limite: ${limite}`;
+    } else {
+      hBadge.textContent = `${planoLabel} • Ilimitado ♾️`;
+    }
+  }
+
+  // Se o usuário for Admin, exibir botão de acesso ao Painel Admin
+  if (licenseData?.is_admin) {
+    const navAdmin = document.getElementById('nav-admin');
+    if (navAdmin) navAdmin.style.display = 'flex';
+    const hAdmin = document.getElementById('header-admin-btn');
+    if (hAdmin) hAdmin.style.display = 'block';
+  }
+
   const elPlano = document.getElementById('profile-plano');
-  if (elPlano) elPlano.textContent = planoNames[licenseData.plano] || licenseData.plano || 'Vitalício';
+  if (elPlano) elPlano.textContent = planoLabel;
 
   const elLimit = document.getElementById('profile-limit');
   if (elLimit) {
-    if (licenseData.limite_convites === null || licenseData.limite_convites === undefined) {
-      elLimit.textContent = 'Ilimitado ♾️';
-    } else {
-      elLimit.textContent = `${licenseData.limite_convites} convites`;
-    }
+    elLimit.textContent = (limite !== null && limite !== undefined) ? `${limite} convites` : 'Ilimitado ♾️';
   }
 
   const elStatus = document.getElementById('profile-status');
   if (elStatus) {
-    const isExpired = licenseData.data_expiracao && new Date(licenseData.data_expiracao) < new Date();
-    if (licenseData.ativo === false) {
+    const isExpired = licenseData?.data_expiracao && new Date(licenseData.data_expiracao) < new Date();
+    if (licenseData?.ativo === false) {
       elStatus.textContent = 'Suspenso ✕';
       elStatus.style.color = '#ef4444';
     } else if (isExpired) {

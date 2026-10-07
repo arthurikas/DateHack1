@@ -834,14 +834,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   try {
     const { data: { session } } = await sb.auth.getSession();
-    if (session) {
+    if (session && session.user) {
       currentUser = session.user;
-      const { data: lic } = await sb.from('usuarios_licenciados').select('*').eq('email', currentUser.email).maybeSingle();
+      let { data: lic } = await sb.from('usuarios_licenciados').select('*').eq('auth_user_id', currentUser.id).maybeSingle();
+      if (!lic && currentUser.email) {
+        const { data: licByEmail } = await sb.from('usuarios_licenciados').select('*').ilike('email', currentUser.email.trim()).maybeSingle();
+        lic = licByEmail;
+      }
       if (lic) {
+        if (!lic.is_admin) {
+          window.location.href = 'dashboard.html';
+          return;
+        }
         const name = lic.nome || currentUser.email.split('@')[0];
         document.getElementById('admin-name').textContent = name;
         document.getElementById('admin-avatar').textContent = name.charAt(0).toUpperCase();
       }
+    } else {
+      window.location.href = 'auth.html';
+      return;
     }
   } catch(e) {
     console.warn('Auth check skipped:', e);
