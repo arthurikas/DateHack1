@@ -491,10 +491,17 @@
   .hc-date { font-size: 0.72rem; color: #a0a0a8; font-weight: 600; }
   .hc-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 14px; }
   .hc-chip { background: rgba(255,45,120,0.12); border: 1px solid rgba(255,45,120,0.3); color: #ff4d94; border-radius: 20px; padding: 2px 8px; font-size: 0.68rem; font-weight: 600; }
-  .hc-actions { display: flex; gap: 8px; }
-  .hc-btn { flex: 1; padding: 8px; border: 1.5px solid rgba(255,45,120,0.25); border-radius: 8px; background: none; font-family: 'Quicksand', sans-serif; font-size: 0.78rem; font-weight: 700; color: #ff4d94; cursor: pointer; transition: all 0.25s; text-align: center; }
-  .hc-btn:hover { background: rgba(255,45,120,0.1); border-color: #ff2d78; }
-  .hc-btn.danger:hover { background: #fef2f2; border-color: #fca5a5; color: #dc2626; }
+  .hc-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .hc-btn {
+    flex: 1 1 calc(33% - 6px); min-width: 70px; padding: 7px 8px;
+    border: 1.5px solid rgba(255,45,120,0.25); border-radius: 8px;
+    background: rgba(255,45,120,0.06); font-family: 'Quicksand', sans-serif;
+    font-size: 0.74rem; font-weight: 700; color: #ff4d94;
+    cursor: pointer; transition: all 0.25s; text-align: center; white-space: nowrap;
+  }
+  .hc-btn:hover { background: rgba(255,45,120,0.15); border-color: #ff2d78; transform: translateY(-1px); }
+  .hc-btn.danger { flex: 0 0 36px; min-width: 36px; border-color: rgba(239,68,68,0.3); color: #f87171; background: rgba(239,68,68,0.06); }
+  .hc-btn.danger:hover { background: rgba(239,68,68,0.2); border-color: #ef4444; color: #fca5a5; }
 
   /* ===== PROFILE PANEL ===== */
   .profile-card {
@@ -639,6 +646,10 @@
         <span class="step-icon">👩‍❤️‍👨</span>
         <h1 class="step-title">Qual o nome dela?</h1>
         <p class="step-subtitle">Personalize o convite com o nome dela ✨</p>
+        <div class="limit-blocked-banner" id="limit-blocked-banner" style="display:none;margin-bottom:18px;padding:14px 18px;border-radius:12px;background:rgba(239,68,68,0.12);border:1.5px solid rgba(239,68,68,0.35);color:#fca5a5;font-size:0.88rem;line-height:1.5;">
+          <span style="font-size:1.1rem;margin-right:6px">⚠️</span>
+          <span id="limit-blocked-msg">Você atingiu o limite de convites do seu plano.</span>
+        </div>
         <div class="field-group">
           <label class="field-label" for="input-name">Nome dela</label>
           <input class="text-input" id="input-name" type="text" placeholder="Ex: Juliana, Mi, Camila..." maxlength="40" autocomplete="off">
@@ -812,8 +823,16 @@
           <div><div class="pi-label">Convites criados</div><div class="pi-value" id="profile-invites">0</div></div>
         </div>
         <div class="profile-info-item">
+          <span class="pi-icon">📦</span>
+          <div><div class="pi-label">Plano</div><div class="pi-value" id="profile-plano">Vitalício</div></div>
+        </div>
+        <div class="profile-info-item">
+          <span class="pi-icon">🎯</span>
+          <div><div class="pi-label">Limite do Plano</div><div class="pi-value" id="profile-limit">Ilimitado ♾️</div></div>
+        </div>
+        <div class="profile-info-item">
           <span class="pi-icon">✅</span>
-          <div><div class="pi-label">Status</div><div class="pi-value" style="color:#16a34a">Ativo ✓</div></div>
+          <div><div class="pi-label">Status</div><div class="pi-value" id="profile-status" style="color:#16a34a">Ativo ✓</div></div>
         </div>
       </div>
     </div>
@@ -931,8 +950,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       const { data: lic } = await sb.from('usuarios_licenciados').select('*').eq('email', currentUser.email).maybeSingle();
       if (lic) {
         licenseData = lic;
-        populateUI();
+        // Atualiza ultimo_acesso silenciosamente
+        sb.from('usuarios_licenciados').update({ ultimo_acesso: new Date().toISOString() }).eq('id', lic.id).then();
       }
+      populateUI();
+      await migrateLocalStorageInvites(currentUser.id);
+      await checkPlanLimits();
     }
   } catch(e) {
     console.warn('Auth check skipped:', e);
@@ -942,6 +965,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function populateUI() {
+  if (!licenseData || !currentUser) return;
   const name = licenseData.nome || currentUser.email.split('@')[0];
   const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   document.getElementById('sidebar-avatar').textContent = initials;
@@ -951,12 +975,94 @@ function populateUI() {
   document.getElementById('profile-name').textContent = name;
   document.getElementById('profile-email').textContent = currentUser.email;
   document.getElementById('profile-since').textContent = formatDate(licenseData.data_liberacao);
+
+  const planoNames = { vitalicio: 'Vitalício', mensal: 'Mensal', anual: 'Anual', teste: 'Período de Testes' };
+  const elPlano = document.getElementById('profile-plano');
+  if (elPlano) elPlano.textContent = planoNames[licenseData.plano] || licenseData.plano || 'Vitalício';
+
+  const elLimit = document.getElementById('profile-limit');
+  if (elLimit) {
+    if (licenseData.limite_convites === null || licenseData.limite_convites === undefined) {
+      elLimit.textContent = 'Ilimitado ♾️';
+    } else {
+      elLimit.textContent = `${licenseData.limite_convites} convites`;
+    }
+  }
+
+  const elStatus = document.getElementById('profile-status');
+  if (elStatus) {
+    const isExpired = licenseData.data_expiracao && new Date(licenseData.data_expiracao) < new Date();
+    if (licenseData.ativo === false) {
+      elStatus.textContent = 'Suspenso ✕';
+      elStatus.style.color = '#ef4444';
+    } else if (isExpired) {
+      elStatus.textContent = 'Expirado ⚠️';
+      elStatus.style.color = '#f59e0b';
+    } else {
+      elStatus.textContent = 'Ativo ✓';
+      elStatus.style.color = '#16a34a';
+    }
+  }
+
   updateProfileInviteCount();
 }
 
-function updateProfileInviteCount() {
-  const history = getHistory();
-  document.getElementById('profile-invites').textContent = history.length;
+let isCreationBlocked = false;
+async function checkPlanLimits() {
+  const banner = document.getElementById('limit-blocked-banner');
+  const msg = document.getElementById('limit-blocked-msg');
+  const btn1 = document.getElementById('btn-1');
+
+  if (!licenseData) return;
+
+  if (licenseData.ativo === false) {
+    isCreationBlocked = true;
+    msg.textContent = 'Sua conta está suspensa. Entre em contato com o suporte para reativar seu acesso.';
+    banner.style.display = 'block';
+    if (btn1) btn1.disabled = true;
+    return;
+  }
+
+  if (licenseData.data_expiracao && new Date(licenseData.data_expiracao) < new Date()) {
+    isCreationBlocked = true;
+    const expDate = formatDate(licenseData.data_expiracao);
+    msg.textContent = `Seu plano expirou em ${expDate}. Entre em contato com o suporte para renovar seu acesso.`;
+    banner.style.display = 'block';
+    if (btn1) btn1.disabled = true;
+    return;
+  }
+
+  if (licenseData.limite_convites !== null && licenseData.limite_convites !== undefined && currentUser) {
+    const { count, error } = await sb
+      .from('convites')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', currentUser.id);
+
+    if (!error && count !== null && count >= licenseData.limite_convites) {
+      isCreationBlocked = true;
+      msg.textContent = `Você atingiu o limite de ${licenseData.limite_convites} convites do seu plano. Fale com o suporte para obter mais convites!`;
+      banner.style.display = 'block';
+      if (btn1) btn1.disabled = true;
+      return;
+    }
+  }
+
+  isCreationBlocked = false;
+  banner.style.display = 'none';
+}
+
+async function updateProfileInviteCount() {
+  let count = 0;
+  if (currentUser) {
+    try {
+      const res = await sb.from('convites').select('id', { count: 'exact', head: true }).eq('user_id', currentUser.id);
+      if (!res.error && res.count !== null) count = res.count;
+    } catch(e) {}
+  } else {
+    count = getHistory().length;
+  }
+  const el = document.getElementById('profile-invites');
+  if (el) el.textContent = count;
 }
 
 // ===== LOGOUT =====
@@ -1286,26 +1392,56 @@ function buildData() {
   };
 }
 
-function generateLink() {
+async function generateLink() {
+  if (isCreationBlocked) {
+    alert('Não é possível criar novos convites no momento. Verifique as restrições da sua conta/plano.');
+    return;
+  }
+
   const data = buildData();
   const encoded = encodeData(data);
   const link = `${INVITE_BASE}?data=${encoded}`;
   wz.generatedLink = link;
 
   const display = document.getElementById('link-display');
-  display.textContent = link;
+  if (display) display.textContent = link;
 
-  document.getElementById('result-section').classList.add('visible');
+  const resSec = document.getElementById('result-section');
+  if (resSec) resSec.classList.add('visible');
 
   const qrEl = document.getElementById('qrcode');
-  qrEl.innerHTML = '';
-  new QRCode(qrEl, { text: link, width: 140, height: 140, colorDark: '#ff2d78', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+  if (qrEl) {
+    qrEl.innerHTML = '';
+    new QRCode(qrEl, { text: link, width: 140, height: 140, colorDark: '#ff2d78', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+  }
 
-  const captions = { romantic: `${wz.name}, olha o que eu preparei pra você 👀❤️`, casual: `ei ${wz.name}, olha isso aqui 👀😄`, elegant: `Querida ${wz.name}, preparei algo especial para você 💌🥂` };
-  document.getElementById('caption-text').textContent = captions[wz.theme] || captions.romantic;
+  const captions = {
+    romantic: `${wz.name}, olha o que eu preparei pra você 👀❤️`,
+    casual: `ei ${wz.name}, olha isso aqui 👀😄`,
+    elegant: `Querida ${wz.name}, preparei algo especial para você 💌🥂`
+  };
+  const captionEl = document.getElementById('caption-text');
+  if (captionEl) captionEl.textContent = captions[wz.theme] || captions.romantic;
 
-  saveToHistory(data, link);
-  updateProfileInviteCount();
+  // Persist to Cloud convites
+  if (currentUser) {
+    try {
+      const { error } = await sb.from('convites').insert([{
+        user_id: currentUser.id,
+        titulo: wz.name || 'Convite sem nome',
+        dados: encoded,
+        link_gerado: link
+      }]);
+      if (error) console.error('Erro ao salvar convite no Supabase:', error);
+    } catch(err) {
+      console.warn('Falha na requisição ao salvar convite:', err);
+    }
+  } else {
+    saveToHistory(data, link);
+  }
+
+  await updateProfileInviteCount();
+  await checkPlanLimits();
 }
 
 function copyLink() {
@@ -1325,7 +1461,7 @@ function copyCaption() {
   });
 }
 
-// ===== HISTORY =====
+// ===== LOCALSTORAGE FALLBACK & MIGRATION =====
 function getHistory() {
   try { return JSON.parse(localStorage.getItem(historyKey) || '[]'); } catch { return []; }
 }
@@ -1336,55 +1472,272 @@ function saveToHistory(data, link) {
   localStorage.setItem(historyKey, JSON.stringify(history.slice(0, 50)));
 }
 
-function deleteFromHistory(id) {
-  const history = getHistory().filter(h => h.id !== id);
-  localStorage.setItem(historyKey, JSON.stringify(history));
-  renderHistory();
-  updateProfileInviteCount();
+async function migrateLocalStorageInvites(userId) {
+  if (!userId) return;
+  try {
+    const raw = localStorage.getItem(historyKey) || localStorage.getItem('dateinvite_history_guest');
+    if (!raw) return;
+    const items = JSON.parse(raw);
+    if (!Array.isArray(items) || items.length === 0) return;
+
+    // Check existing links to prevent duplicates
+    const { data: existing } = await sb.from('convites').select('link_gerado').eq('user_id', userId);
+    const existingLinks = new Set((existing || []).map(e => e.link_gerado));
+
+    const toInsert = [];
+    for (const item of items) {
+      if (item.link && !existingLinks.has(item.link)) {
+        let dadosStr = '';
+        try {
+          const match = item.link.match(/[?&]data=([^&#]+)/);
+          dadosStr = match ? match[1] : encodeData({
+            name: item.name || '',
+            theme: item.theme || 'romantic',
+            foods: item.foods || [],
+            dates: item.dates || []
+          });
+        } catch(e) {
+          dadosStr = '';
+        }
+        toInsert.push({
+          user_id: userId,
+          titulo: item.name || 'Convite migrado',
+          dados: dadosStr,
+          link_gerado: item.link,
+          created_at: item.createdAt || new Date().toISOString()
+        });
+      }
+    }
+
+    if (toInsert.length > 0) {
+      await sb.from('convites').insert(toInsert);
+    }
+    localStorage.removeItem(historyKey);
+    localStorage.removeItem('dateinvite_history_guest');
+  } catch(e) {
+    console.warn('Migração de histórico pulada:', e);
+  }
 }
 
-const THEME_ICONS = { romantic: { icon: '💕', cls: 'theme-romantic-bg' }, casual: { icon: '😄', cls: 'theme-casual-bg' }, elegant: { icon: '🥂', cls: 'theme-elegant-bg' } };
+// ===== CLOUD HISTORY & ACTIONS =====
+const THEME_ICONS = {
+  romantic: { icon: '💕', cls: 'theme-romantic-bg' },
+  casual: { icon: '😄', cls: 'theme-casual-bg' },
+  elegant: { icon: '🥂', cls: 'theme-elegant-bg' }
+};
 
-function renderHistory() {
-  const history = getHistory();
+let cachedInvites = [];
+
+async function fetchInvites() {
+  if (currentUser) {
+    const { data, error } = await sb
+      .from('convites')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false });
+    if (!error && data) {
+      cachedInvites = data;
+      return cachedInvites;
+    }
+  }
+  // Fallback se não logado ou offline
+  cachedInvites = getHistory().map(h => ({
+    id: h.id,
+    titulo: h.name,
+    link_gerado: h.link,
+    dados: '',
+    theme_preview: h.theme,
+    foods_preview: h.foods,
+    dates_preview: h.dates,
+    created_at: h.createdAt
+  }));
+  return cachedInvites;
+}
+
+async function renderHistory() {
   const grid = document.getElementById('history-grid');
   const empty = document.getElementById('history-empty');
+  if (!grid || !empty) return;
+
+  grid.innerHTML = '<div style="color:var(--text-muted);padding:24px;text-align:center;width:100%">Carregando seus convites...</div>';
+  const invites = await fetchInvites();
   grid.innerHTML = '';
-  if (history.length === 0) { empty.style.display = 'block'; return; }
+
+  if (!invites || invites.length === 0) {
+    empty.style.display = 'block';
+    return;
+  }
   empty.style.display = 'none';
-  history.forEach(h => {
-    const t = THEME_ICONS[h.theme] || THEME_ICONS.romantic;
+
+  invites.forEach(inv => {
+    let payload = null;
+    if (inv.dados) {
+      payload = decodeData(inv.dados);
+    }
+    const theme = (payload && payload.theme) || inv.theme_preview || 'romantic';
+    const t = THEME_ICONS[theme] || THEME_ICONS.romantic;
+    const name = inv.titulo || (payload && payload.name) || 'Convite';
+    const foods = (payload && payload.foods) || inv.foods_preview || [];
+    const dates = (payload && payload.dates) || inv.dates_preview || [];
+
+    const foodChips = foods.map(f => `<span class="hc-chip">${f.emoji || '🍽️'} ${escapeHtml(f.name)}</span>`).join('');
+    const dateChips = dates.map(d => `<span class="hc-chip">📅 ${formatDateShort(d.date)}</span>`).join('');
+
     const card = document.createElement('div');
     card.className = 'history-card';
-    const foodChips = (h.foods || []).map(f => `<span class="hc-chip">${f.emoji} ${f.name}</span>`).join('');
-    const dateChips = (h.dates || []).map(d => `<span class="hc-chip">📅 ${formatDateShort(d.date)}</span>`).join('');
     card.innerHTML = `
       <div class="hc-header">
         <div class="hc-theme-badge ${t.cls}">${t.icon}</div>
-        <div><div class="hc-name">Para: ${h.name}</div><div class="hc-date">${formatDateTime(h.createdAt)}</div></div>
+        <div style="overflow:hidden">
+          <div class="hc-name" title="${escapeHtml(name)}">Para: ${escapeHtml(name)}</div>
+          <div class="hc-date">${formatDateTime(inv.created_at)}</div>
+        </div>
       </div>
       <div class="hc-chips">${foodChips}${dateChips}</div>
       <div class="hc-actions">
-        <button class="hc-btn" onclick="openInvite('${h.id}')">🔗 Abrir</button>
-        <button class="hc-btn" onclick="copyHistoryLink('${h.id}')">📋 Copiar link</button>
-        <button class="hc-btn danger" onclick="deleteFromHistory(${h.id})">🗑️</button>
+        <button class="hc-btn" onclick="openInviteUrl('${inv.id}')" title="Abrir link do convite em nova aba">🔗 Abrir</button>
+        <button class="hc-btn" onclick="copyInviteUrl('${inv.id}')" title="Copiar link do convite">📋 Copiar link</button>
+        <button class="hc-btn" onclick="downloadQRCode('${inv.id}')" title="Baixar QR Code em alta definição">📱 Baixar QR</button>
+        <button class="hc-btn" onclick="duplicateInvite('${inv.id}')" title="Carregar dados deste convite para editar">🔄 Duplicar</button>
+        <button class="hc-btn danger" onclick="deleteInvite('${inv.id}')" title="Excluir este convite">🗑️</button>
       </div>
     `;
     grid.appendChild(card);
   });
 }
 
-function openInvite(id) {
-  const h = getHistory().find(x => x.id == id);
-  if (h) window.open(h.link, '_blank');
+function openInviteUrl(id) {
+  const inv = cachedInvites.find(x => x.id == id);
+  if (inv && inv.link_gerado) window.open(inv.link_gerado, '_blank');
 }
 
-function copyHistoryLink(id) {
-  const h = getHistory().find(x => x.id == id);
-  if (h) navigator.clipboard.writeText(h.link).then(() => alert('Link copiado! ✓'));
+function copyInviteUrl(id) {
+  const inv = cachedInvites.find(x => x.id == id);
+  if (inv && inv.link_gerado) {
+    navigator.clipboard.writeText(inv.link_gerado).then(() => alert('Link copiado para a área de transferência! ✓'));
+  }
 }
 
-// ===== HELPERS =====
+function downloadQRCode(id) {
+  const inv = cachedInvites.find(x => x.id == id);
+  if (!inv || !inv.link_gerado) return;
+
+  const tempDiv = document.createElement('div');
+  tempDiv.style.position = 'fixed';
+  tempDiv.style.left = '-9999px';
+  tempDiv.style.top = '-9999px';
+  document.body.appendChild(tempDiv);
+
+  new QRCode(tempDiv, {
+    text: inv.link_gerado,
+    width: 600,
+    height: 600,
+    colorDark: '#ff2d78',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+  });
+
+  setTimeout(() => {
+    let imgUri = '';
+    const canvas = tempDiv.querySelector('canvas');
+    if (canvas) {
+      imgUri = canvas.toDataURL('image/png');
+    } else {
+      const img = tempDiv.querySelector('img');
+      if (img) imgUri = img.src;
+    }
+
+    if (imgUri) {
+      const a = document.createElement('a');
+      const safeName = (inv.titulo || 'convite').replace(/[^a-zA-Z0-9_-]/g, '_');
+      a.download = `qrcode_${safeName}.png`;
+      a.href = imgUri;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } else {
+      alert('Não foi possível gerar a imagem do QR Code para download.');
+    }
+    document.body.removeChild(tempDiv);
+  }, 180);
+}
+
+function duplicateInvite(id) {
+  const inv = cachedInvites.find(x => x.id == id);
+  if (!inv) return;
+  const data = inv.dados ? decodeData(inv.dados) : null;
+  if (!data) {
+    alert('Os detalhes completos deste convite não estão disponíveis para duplicar.');
+    return;
+  }
+
+  wz.name = data.name || '';
+  wz.phrase = data.phrase || '';
+  wz.budget = data.budget || null;
+  wz.foods = data.foods || [];
+  wz.dates = data.dates || [];
+  wz.theme = data.theme || 'romantic';
+  wz.vibe = data.vibe || null;
+
+  const nameInput = document.getElementById('name-input');
+  if (nameInput) nameInput.value = wz.name;
+  const phraseInput = document.getElementById('phrase-input');
+  if (phraseInput) phraseInput.value = wz.phrase;
+  const btn1 = document.getElementById('btn-1');
+  if (btn1) btn1.disabled = !wz.name.trim();
+
+  document.querySelectorAll('.theme-card').forEach(c => {
+    if (c.dataset.theme === wz.theme) c.classList.add('selected');
+    else c.classList.remove('selected');
+  });
+
+  switchPanel('criar');
+  showStep(1, 'back');
+  alert(`Convite para "${wz.name}" carregado! Você pode alterar qualquer informação antes de gerar.`);
+}
+
+async function deleteInvite(id) {
+  if (!confirm('Tem certeza que deseja excluir este convite?')) return;
+
+  if (currentUser) {
+    const { error } = await sb.from('convites').delete().eq('id', id);
+    if (error) {
+      alert('Erro ao excluir convite: ' + error.message);
+      return;
+    }
+  } else {
+    const history = getHistory().filter(h => h.id != id);
+    localStorage.setItem(historyKey, JSON.stringify(history));
+  }
+
+  await renderHistory();
+  await updateProfileInviteCount();
+  await checkPlanLimits();
+}
+
+// ===== UTILS =====
+function decodeData(raw) {
+  if (!raw) return null;
+  const str = raw.trim();
+  try {
+    if (str.startsWith('{')) return JSON.parse(str);
+    const uriDecoded = decodeURIComponent(str);
+    if (uriDecoded.startsWith('{')) return JSON.parse(uriDecoded);
+  } catch (e) {}
+  try {
+    let b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4 !== 0) b64 += '=';
+    const jsonStr = decodeURIComponent(escape(atob(b64)));
+    return JSON.parse(jsonStr);
+  } catch (e) {}
+  return null;
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+}
+
 function formatDateShort(s) { if (!s) return ''; const [y,m,d] = s.split('-'); return `${d}/${m}`; }
 function formatDate(s) { if (!s) return '—'; return new Date(s).toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' }); }
 function formatDateTime(s) { if (!s) return ''; return new Date(s).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }); }
