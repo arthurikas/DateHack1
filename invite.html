@@ -2,12 +2,16 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>💘 Date Hack — Você recebeu um convite!</title>
-<meta name="description" content="Alguém preparou um convite especial só pra você pelo Date Hack. Abra e descubra!">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>💌 Você recebeu um convite especial!</title>
+<meta name="description" content="Alguém preparou uma surpresa especial só pra você. Toque para abrir! ✨">
+<meta property="og:title" content="💌 Você recebeu um convite especial!">
+<meta property="og:description" content="Alguém preparou uma surpresa especial só pra você. Toque para abrir! ✨">
+<meta property="og:type" content="website">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Quicksand:wght@600;700&family=Lobster&family=Bangers&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -726,7 +730,23 @@ const themes = {
   }
 };
 
+// ===== SUPABASE CLIENT =====
+const SUPABASE_URL = 'https://qqxjrfrtomyaozzfbqcc.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxeGpyZnJ0b215YW96emZicWNjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODI2ODU2MywiZXhwIjoyMDkzODQ0NTYzfQ.RQncB4UeJIXYd8c3pi-42WgiD2RQcimnuHmy5W8HntI';
+let sbClient = null;
+try {
+  if (window.supabase) {
+    sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
+  }
+} catch(e) {
+  console.warn('Supabase init:', e);
+}
+
 let inviteData = null;
+let inviteId = null;
+let rawParam = null;
 let noCount = 0;
 let selectedDate = null;
 let selectedFood = null;
@@ -760,19 +780,89 @@ function parseInviteData(raw) {
   return null;
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const params = new URLSearchParams(window.location.search);
   const raw = params.get('data');
   const isPreview = params.get('preview') === '1';
+  inviteId = params.get('id');
+  const bareQuery = (!window.location.search.includes('=') && window.location.search.length > 1)
+    ? window.location.search.slice(1)
+    : null;
+  const code = params.get('c') || bareQuery;
+  rawParam = raw;
 
   if (isPreview) document.getElementById('preview-banner').classList.add('visible');
 
   inviteData = parseInviteData(raw);
 
+  // Se veio link curto (?c=xxxxxx ou ?id=...) sem ?data=, busca os dados no Supabase
+  if (!inviteData && (code || inviteId) && sbClient) {
+    try {
+      const s1Title = document.getElementById('s1-title');
+      const yesnoRow = document.querySelector('.yesno-row');
+      if (s1Title) s1Title.textContent = 'Abrindo seu convite especial... 💌';
+      if (yesnoRow) yesnoRow.style.visibility = 'hidden';
+
+      let foundRow = null;
+      const lookupCode = (code || inviteId || '').trim();
+
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(lookupCode)) {
+        const { data } = await sbClient.from('convites').select('id, dados').eq('id', lookupCode).maybeSingle();
+        if (data) foundRow = data;
+      } else if (/^[0-9a-f]{4,12}$/i.test(lookupCode)) {
+        const cleanHex = lookupCode.toLowerCase().slice(0, 8);
+        const minUuid = cleanHex.padEnd(8, '0') + '-0000-0000-0000-000000000000';
+        const maxUuid = cleanHex.padEnd(8, 'f') + '-ffff-ffff-ffff-ffffffffffff';
+        const { data } = await sbClient
+          .from('convites')
+          .select('id, dados')
+          .gte('id', minUuid)
+          .lte('id', maxUuid)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        if (data && data.length > 0) foundRow = data[0];
+      }
+
+      if (!foundRow && lookupCode) {
+        const { data } = await sbClient
+          .from('convites')
+          .select('id, dados')
+          .ilike('link_gerado', `%${lookupCode}%`)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        if (data && data.length > 0) foundRow = data[0];
+      }
+
+      if (yesnoRow) yesnoRow.style.visibility = 'visible';
+
+      if (foundRow && foundRow.dados) {
+        inviteId = foundRow.id;
+        rawParam = foundRow.dados;
+        inviteData = parseInviteData(foundRow.dados);
+      }
+    } catch (e) {
+      console.warn('Erro ao buscar convite por código curto:', e);
+    }
+  }
+
   if (!inviteData) { showError(); return; }
 
+  // Se id não veio na URL, busca retroativamente no Supabase para convites já enviados
+  if (!inviteId && !isPreview && raw && sbClient) {
+    sbClient.from('convites').select('id').eq('dados', raw).limit(1).then(({ data }) => {
+      if (data && data.length > 0) {
+        inviteId = data[0].id;
+        console.log('🔗 Convite identificado no banco por dados:', inviteId);
+      }
+    }).catch(() => {});
+  }
+
   if (!isPreview && window.history && window.history.replaceState) {
-    try { window.history.replaceState({}, document.title, window.location.pathname); } catch(e) {}
+    try {
+      const cleanShort = code || (inviteId ? String(inviteId).replace(/-/g, '').slice(0, 6) : '');
+      const cleanUrl = cleanShort ? `${window.location.pathname}?c=${cleanShort}` : window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+    } catch(e) {}
   }
 
   applyTheme(inviteData.theme || 'romantic');
@@ -1011,6 +1101,61 @@ function buildScreen5() {
     document.getElementById('countdown-box').style.display = 'none';
   }
   fireConfetti(inviteData.theme);
+
+  const params = new URLSearchParams(window.location.search);
+  const isPreview = params.get('preview') === '1';
+  if (!isPreview) {
+    saveInviteResponse(inviteId, rawParam);
+  }
+}
+
+let responseAlreadySaved = false;
+
+async function saveInviteResponse(targetId, rawDados) {
+  if (responseAlreadySaved || !sbClient) return;
+  responseAlreadySaved = true;
+
+  try {
+    let resolvedId = targetId;
+    if (!resolvedId && rawDados) {
+      const { data: found } = await sbClient.from('convites').select('id, dados').eq('dados', rawDados).limit(1);
+      if (found && found.length > 0) resolvedId = found[0].id;
+    }
+    if (!resolvedId) return;
+
+    const dateStr = selectedDate
+      ? `${formatDateBRFull(selectedDate.date)}${selectedDate.time ? ' às '+selectedDate.time+'h' : ''}`
+      : 'A definir';
+    const foodStr = selectedFood ? `${selectedFood.emoji} ${selectedFood.name}` : '🎁 Surpresa';
+    const vibeStr = selectedVibe ? `${selectedVibe.emoji} ${selectedVibe.label}` : '✨ Surpresa';
+
+    const respostaObj = {
+      aceitou: true,
+      data: dateStr,
+      data_raw: selectedDate || null,
+      comida: foodStr,
+      comida_raw: selectedFood || null,
+      vibe: vibeStr,
+      vibe_raw: selectedVibe || null,
+      answered_at: new Date().toISOString()
+    };
+
+    const updatedPayload = { ...(inviteData || {}), respostas: respostaObj };
+    const updatedEncoded = btoa(unescape(encodeURIComponent(JSON.stringify(updatedPayload))));
+
+    const { error } = await sbClient.from('convites').update({
+      dados: updatedEncoded,
+      updated_at: new Date().toISOString()
+    }).eq('id', resolvedId);
+
+    if (error) {
+      console.warn('Erro ao salvar resposta no banco:', error);
+    } else {
+      console.log('✅ Resposta da convidada gravada com sucesso no Supabase!');
+    }
+  } catch(err) {
+    console.warn('Exceção ao salvar resposta:', err);
+  }
 }
 
 function showScreen(n) {
